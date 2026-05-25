@@ -1,0 +1,38 @@
+[
+    {
+        "id": "silver_atomizer",
+        "title": "Срібний атомайзер",
+        "image": "silver_atomizer.webp",
+        "instock": true,
+        "sizes": {
+            "2": 10,
+            "3": 10,
+            "5": 10,
+            "10": 10,
+            "15": 10
+        }
+    },
+    {
+        "id": "gold_atomizer",
+        "title": "Золотий атомайзер",
+        "image": "gold_atomizer.webp",
+        "instock": true,
+        "sizes": {
+            "3": 0,
+            "5": 0,
+            "10": 0
+        }
+    },
+    {
+        "id": "black_atomizer",
+        "title": "Чорний атомайзер",
+        "image": "black_atomizer.webp",
+        "instock": true,
+        "sizes": {
+            "3": 0,
+            "5": 0,
+            "10": 0,
+            "15": 0
+        }
+    }
+]
