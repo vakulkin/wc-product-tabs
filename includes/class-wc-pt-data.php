@@ -80,7 +80,7 @@ class WC_PT_Data {
 			$rozpyv_status = $this->normalize_variant_status( get_field( 'rozpyv_status', $product_id ) );
 			$rozpyv_price_per_ml = $this->to_float( get_field( 'rozpyv_price', $product_id ) );
 			$base = [
-				'key'       => sanitize_text_field( (string) get_field( 'rozpyv_key', $product_id ) ),
+				'key'       => '',
 				'pos_id'    => sanitize_text_field( (string) get_field( 'rozpyv_pos_id', $product_id ) ),
 				'price'     => sanitize_text_field( (string) get_field( 'rozpyv_price', $product_id ) ),
 				'price_per_ml' => $rozpyv_price_per_ml,

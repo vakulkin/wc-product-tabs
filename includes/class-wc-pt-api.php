@@ -142,7 +142,6 @@ class WC_PT_API
             '_price',
             '_regular_price',
             '_stock_status',
-            'rozpyv_key',
             'rozpyv_pos_id',
             'rozpyv_price',
             'rozpyv_old_price',
@@ -292,7 +291,7 @@ class WC_PT_API
             $rows[] = [
                 'product_id'   => $product_id,
                 'field_key'    => 'rozpyv',
-                'key'          => self::get_meta_value( $product_meta, 'rozpyv_key' ),
+                'key'          => '',
                 'pos_id'       => $rozpyv_pos_id,
                 'price'        => self::get_meta_value( $product_meta, 'rozpyv_price' ),
                 'old_price'    => self::get_meta_value( $product_meta, 'rozpyv_old_price' ),

@@ -66,7 +66,6 @@ class WC_PT_ACF
         $fields   = array_merge($fields, self::build_variants_groups('zalyszky'));
 
         $fields[] = self::build_tab('field_wcpt_tab_rozpyv', 'Rozpyv', $cat_rozpyv);
-        $fields[] = self::build_text_field('field_wcpt_rozpyv_key', 'rozpyv_key', 'rozpyv_key', '20');
         $fields[] = self::build_text_field('field_wcpt_rozpyv_pos_id', 'rozpyv_pos_id', 'rozpyv_pos_id', '20');
         $fields[] = self::build_text_field('field_wcpt_rozpyv_price', 'rozpyv_price', 'rozpyv_price', '20');
         $fields[] = self::build_text_field('field_wcpt_rozpyv_old_price', 'rozpyv_old_price', 'rozpyv_old_price', '20');
