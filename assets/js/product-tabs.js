@@ -201,8 +201,9 @@
             html += '<p class="wct-section-label">Атомайзер</p>';
             html += '<div class="wct-atomizers">';
             tabData.atomizers.forEach(function (a, idx) {
-                var imgHtml = a.image
-                    ? '<img src="' + esc(window.wcProductTabs.atomizers_url + a.image) +
+                var initialImage = resolveAtomizerImage(a.image);
+                var imgHtml = initialImage
+                    ? '<img src="' + esc(initialImage) +
                     '" alt="' + esc(a.title) + '" class="wct-atomizer-img">'
                     : '';
                 html += '<div class="wct-atomizer" data-atomizer-index="' + idx + '">';
@@ -470,7 +471,19 @@
                 if (available) {
                     var atomizerPrice = getAtomizerPriceForSize(atomizer, size);
                     var text = atomizerPrice !== null ? formatPrice(atomizerPrice, currency) : '';
+                    var atomizerImage = getAtomizerImageForSize(atomizer, size);
+
                     $(this).find('.wct-atomizer-price').text(text);
+
+                    if (atomizerImage) {
+                        var $img = $(this).find('.wct-atomizer-img');
+                        if ($img.length) {
+                            $img.attr('src', atomizerImage);
+                        } else {
+                            $(this).prepend('<img src="' + esc(atomizerImage) + '" alt="' + esc(atomizer.title || '') + '" class="wct-atomizer-img">');
+                        }
+                    }
+
                     $(this).removeClass('hidden active');
                 } else {
                     $(this).addClass('hidden').removeClass('active');
@@ -715,6 +728,13 @@
         return price;
     }
 
+    function getAtomizerImageForSize(atomizer, size) {
+        var option = getRozpyvAtomizerOption(atomizer, size);
+        var image = option && option.image ? option.image : (atomizer && atomizer.image ? atomizer.image : '');
+
+        return resolveAtomizerImage(image);
+    }
+
     function isAtomizerAvailableForSize(atomizer, size) {
         var option = getRozpyvAtomizerOption(atomizer, size);
         return !!(option && option.available);
@@ -728,6 +748,36 @@
         }
 
         return atomizer.options[sizeKey] || null;
+    }
+
+    function resolveAtomizerImage(image) {
+        var raw = String(image || '').trim();
+
+        if (!raw) {
+            return '';
+        }
+
+        if (/^(https?:)?\/\//i.test(raw) || raw.indexOf('data:image/') === 0) {
+            return raw;
+        }
+
+        if (raw.charAt(0) === '/') {
+            return raw;
+        }
+
+        var base = (window.wcProductTabs && window.wcProductTabs.atomizers_url)
+            ? String(window.wcProductTabs.atomizers_url)
+            : '';
+
+        if (!base) {
+            return raw;
+        }
+
+        if (base.slice(-1) !== '/') {
+            base += '/';
+        }
+
+        return base + raw.replace(/^\/+/, '');
     }
 
     /* =======================================================================

@@ -513,6 +513,8 @@ class WC_PT_Data {
 			$instock = ! isset( $atomizer['instock'] ) || (bool) $atomizer['instock'];
 			$available_sizes = array_map( 'intval', (array) ( $atomizer['available_sizes'] ?? [] ) );
 			$prices = (array) ( $atomizer['prices'] ?? [] );
+			$size_images = (array) ( $atomizer['size_images'] ?? [] );
+			$default_image = (string) ( $atomizer['image'] ?? '' );
 
 			$options = [];
 
@@ -521,6 +523,7 @@ class WC_PT_Data {
 				$base_price = $price_per_ml * $size_ml;
 
 				$atomizer_price = $this->to_float( $prices[ $size_ml ] ?? $prices[ $size_key ] ?? 0 );
+				$option_image = (string) ( $size_images[ $size_ml ] ?? $size_images[ $size_key ] ?? $default_image );
 				$is_size_allowed = in_array( $size_ml, $available_sizes, true );
 				$total_price = $base_price + $atomizer_price;
 
@@ -540,6 +543,7 @@ class WC_PT_Data {
 					'available' => $available,
 					'atomizer_price' => max( 0, $atomizer_price ),
 					'total_price' => $available ? $total_price : 0,
+					'image' => $option_image,
 				];
 			}
 

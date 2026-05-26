@@ -35,8 +35,8 @@ class WC_PT_Settings {
 	 */
 	public function maybe_migrate_legacy_atomizers() {
 		$settings = get_option( self::OPTION_KEY, [] );
-		if ( is_array( $settings ) && ! empty( $settings['atomizers'] ) ) {
-			return;
+		if ( ! is_array( $settings ) ) {
+			$settings = [];
 		}
 
 		$file = WC_PT_PLUGIN_DIR . 'atomizers.json';
@@ -44,26 +44,28 @@ class WC_PT_Settings {
 			return;
 		}
 
-		$decoded = [];
-		if ( function_exists( 'wp_json_file_decode' ) ) {
-			$decoded = wp_json_file_decode( $file, [ 'associative' => true ] );
+		$contents = file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		if ( ! is_string( $contents ) || '' === trim( $contents ) ) {
+			return;
 		}
 
-		if ( ! is_array( $decoded ) ) {
-			$contents = file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-			$decoded  = json_decode( (string) $contents, true );
+		$file_hash   = md5( $contents );
+		$stored_hash = sanitize_text_field( (string) ( $settings['atomizers_file_hash'] ?? '' ) );
+		$has_saved   = ! empty( $settings['atomizers'] ) && is_array( $settings['atomizers'] );
+
+		if ( $has_saved && '' !== $stored_hash && hash_equals( $stored_hash, $file_hash ) ) {
+			return;
 		}
+
+		$decoded = json_decode( $contents, true );
 
 		$atomizers = $this->normalize_atomizers( is_array( $decoded ) ? $decoded : [] );
 		if ( empty( $atomizers ) ) {
 			return;
 		}
 
-		if ( ! is_array( $settings ) ) {
-			$settings = [];
-		}
-
 		$settings['atomizers'] = $atomizers;
+		$settings['atomizers_file_hash'] = $file_hash;
 		update_option( self::OPTION_KEY, $settings, false );
 	}
 
@@ -104,6 +106,7 @@ class WC_PT_Settings {
 	public function sanitize_settings( $input ) {
 		$defaults = $this->get_default_settings();
 		$input    = is_array( $input ) ? $input : [];
+		$current  = get_option( self::OPTION_KEY, [] );
 
 		$atomizers_input = $input['atomizers_json'] ?? ( $input['atomizers'] ?? [] );
 		$atomizers_raw   = [];
@@ -138,6 +141,10 @@ class WC_PT_Settings {
 		if ( empty( $settings['rozpyv_sizes'] ) ) {
 			$settings['rozpyv_sizes'] = $defaults['rozpyv_sizes'];
 		}
+
+		$settings['atomizers_file_hash'] = is_array( $current )
+			? sanitize_text_field( (string) ( $current['atomizers_file_hash'] ?? '' ) )
+			: '';
 
 		return $settings;
 	}
@@ -254,6 +261,7 @@ class WC_PT_Settings {
 		$settings['tabs_priority'] = $this->sanitize_tabs_priority( $settings['tabs_priority'] ?? $defaults['tabs_priority'] );
 		$settings['atomizers']    = $this->normalize_atomizers( $settings['atomizers'] ?? [] );
 		$settings['api_token']    = sanitize_text_field( $settings['api_token'] ?? $defaults['api_token'] );
+		$settings['atomizers_file_hash'] = sanitize_text_field( (string) ( $settings['atomizers_file_hash'] ?? $defaults['atomizers_file_hash'] ) );
 
 		if ( empty( $settings['rozpyv_sizes'] ) ) {
 			$settings['rozpyv_sizes'] = $defaults['rozpyv_sizes'];
@@ -337,6 +345,7 @@ class WC_PT_Settings {
 			'tabs_priority' => self::DEFAULT_TABS_PRIORITY,
 			'atomizers'    => [],
 			'api_token'    => '',
+			'atomizers_file_hash' => '',
 		];
 	}
 
@@ -419,7 +428,7 @@ class WC_PT_Settings {
 				continue;
 			}
 
-			$image = sanitize_file_name( (string) ( $item['image'] ?? '' ) );
+			$image = $this->sanitize_atomizer_image( $item['image'] ?? '' );
 			$instock = true;
 			if ( array_key_exists( 'instock', $item ) ) {
 				$instock = filter_var( $item['instock'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
@@ -427,13 +436,24 @@ class WC_PT_Settings {
 			}
 
 			$sizes_map = [];
+			$size_images = [];
 
 			if ( isset( $item['sizes'] ) && is_array( $item['sizes'] ) ) {
-				foreach ( $item['sizes'] as $size_raw => $price_raw ) {
+				foreach ( $item['sizes'] as $size_raw => $size_config ) {
 					$size = (int) $size_raw;
 					if ( $size <= 0 ) {
 						continue;
 					}
+
+					$price_raw = $size_config;
+					if ( is_array( $size_config ) ) {
+						$price_raw = $size_config['price'] ?? ( $size_config['atomizer_price'] ?? 0 );
+						$size_image = $this->sanitize_atomizer_image( $size_config['image'] ?? '' );
+						if ( '' !== $size_image ) {
+							$size_images[ (string) $size ] = $size_image;
+						}
+					}
+
 					$sizes_map[ (string) $size ] = (float) $price_raw;
 				}
 			}
@@ -446,6 +466,10 @@ class WC_PT_Settings {
 					}
 					$sizes_map[ (string) $size ] = (float) $price_raw;
 				}
+			}
+
+			if ( '' === $image && ! empty( $size_images ) ) {
+				$image = (string) reset( $size_images );
 			}
 
 			$sizes = $this->parse_sizes_csv( $item['available_sizes'] ?? array_keys( $sizes_map ) );
@@ -472,6 +496,7 @@ class WC_PT_Settings {
 				'id'              => $id,
 				'title'           => '' !== $title ? $title : $id,
 				'image'           => $image,
+				'size_images'     => $size_images,
 				'instock'         => $instock,
 				'sizes'           => $sizes_map,
 				'available_sizes' => $available_sizes,
@@ -503,13 +528,37 @@ class WC_PT_Settings {
 				$sizes_map = $item['prices'];
 			}
 
+			$size_images = [];
+			if ( isset( $item['size_images'] ) && is_array( $item['size_images'] ) ) {
+				foreach ( $item['size_images'] as $size_raw => $image_raw ) {
+					$size = (int) $size_raw;
+					if ( $size <= 0 ) {
+						continue;
+					}
+					$image = $this->sanitize_atomizer_image( $image_raw );
+					if ( '' !== $image ) {
+						$size_images[ (string) $size ] = $image;
+					}
+				}
+			}
+
 			$normalized_sizes = [];
 			foreach ( $sizes_map as $size_raw => $price_raw ) {
 				$size = (int) $size_raw;
 				if ( $size <= 0 ) {
 					continue;
 				}
-				$normalized_sizes[ (string) $size ] = (float) $price_raw;
+
+				$size_key = (string) $size;
+				$price = (float) $price_raw;
+				if ( isset( $size_images[ $size_key ] ) ) {
+					$normalized_sizes[ $size_key ] = [
+						'price' => $price,
+						'image' => $size_images[ $size_key ],
+					];
+				} else {
+					$normalized_sizes[ $size_key ] = $price;
+				}
 			}
 
 			ksort( $normalized_sizes, SORT_NUMERIC );
@@ -517,12 +566,35 @@ class WC_PT_Settings {
 			$result[] = [
 				'id'      => sanitize_key( $item['id'] ?? '' ),
 				'title'   => sanitize_text_field( $item['title'] ?? '' ),
-				'image'   => sanitize_file_name( (string) ( $item['image'] ?? '' ) ),
+				'image'   => $this->sanitize_atomizer_image( $item['image'] ?? '' ),
 				'instock' => array_key_exists( 'instock', $item ) ? (bool) $item['instock'] : true,
 				'sizes'   => $normalized_sizes,
 			];
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Sanitize image value while preserving absolute URLs.
+	 *
+	 * @param mixed $value Raw image value.
+	 * @return string
+	 */
+	private function sanitize_atomizer_image( $value ) {
+		$image = trim( (string) $value );
+		if ( '' === $image ) {
+			return '';
+		}
+
+		if ( preg_match( '#^(https?:)?//#i', $image ) ) {
+			return esc_url_raw( $image );
+		}
+
+		if ( 0 === strpos( $image, 'data:image/' ) ) {
+			return $image;
+		}
+
+		return sanitize_file_name( $image );
 	}
 }
