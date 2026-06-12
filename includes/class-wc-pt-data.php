@@ -40,7 +40,7 @@ class WC_PT_Data {
 
 		// Use raw stock meta here to avoid recursion with Woo filters.
 		$stock_status = sanitize_key( (string) get_post_meta( (int) $product_id, '_stock_status', true ) );
-		$product_available = in_array( $stock_status, [ 'in_stock', 'onbackorder' ], true );
+		$product_available = in_array( $stock_status, [ 'instock', 'onbackorder' ], true );
 
 		$raw_categories = (array) get_field( 'categories', $product_id );
 		if ( empty( $raw_categories ) ) {
