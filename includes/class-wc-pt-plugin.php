@@ -223,8 +223,6 @@ class WC_PT_Plugin {
 		}
 
 		if ( $this->should_block_simple_fallback( $product ) ) {
-			$debug_data = $this->data->get_debug_data( $product->get_id() );
-			echo '<!-- WC PT DEBUG INFO: ' . esc_html( wp_json_encode( $debug_data ) ) . ' -->';
 			echo '<p class="stock out-of-stock">' . esc_html__( 'Немає в наявності', 'wc-product-tabs' ) . '</p>';
 			return;
 		}
