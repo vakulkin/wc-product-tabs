@@ -40,7 +40,7 @@ class WC_PT_Data {
 
 		// Use raw stock meta here to avoid recursion with Woo filters.
 		$stock_status = sanitize_key( (string) get_post_meta( (int) $product_id, '_stock_status', true ) );
-		$product_available = in_array( $stock_status, [ 'instock', 'onbackorder' ], true );
+		$product_available = in_array( $stock_status, [ 'in_stock', 'onbackorder' ], true );
 
 		$raw_categories = (array) get_field( 'categories', $product_id );
 		if ( empty( $raw_categories ) ) {
@@ -86,7 +86,7 @@ class WC_PT_Data {
 				'price_per_ml' => $rozpyv_price_per_ml,
 				'old_price' => sanitize_text_field( (string) get_field( 'rozpyv_old_price', $product_id ) ),
 				'status'    => $rozpyv_status,
-				'available' => $product_available && 'instock' === $rozpyv_status && $rozpyv_price_per_ml > 0,
+				'available' => $product_available && 'in_stock' === $rozpyv_status && $rozpyv_price_per_ml > 0,
 				'desc'      => sanitize_text_field( (string) get_field( 'rozpyv_desc', $product_id ) ),
 			];
 
@@ -394,7 +394,7 @@ class WC_PT_Data {
 
 			$status = $this->normalize_variant_status( $group['status'] ?? '' );
 			if ( $price_value <= 0 ) {
-				$status = 'outofstock';
+				$status = 'out_of_stock';
 			}
 
 			$old_price = '';
@@ -410,7 +410,7 @@ class WC_PT_Data {
 				'price_value' => $price_value,
 				'old_price' => $old_price,
 				'status'    => $status,
-				'available' => $product_available && 'instock' === $status && $price_value > 0,
+				'available' => $product_available && 'in_stock' === $status && $price_value > 0,
 				'desc'      => $desc,
 			];
 		}
@@ -425,11 +425,11 @@ class WC_PT_Data {
 	 * @return string
 	 */
 	private function normalize_variant_status( $status ) {
-		if ( 'instock' === sanitize_key( (string) $status ) ) {
-			return 'instock';
+		if ( 'in_stock' === sanitize_key( (string) $status ) ) {
+			return 'in_stock';
 		}
 
-		return 'outofstock';
+		return 'out_of_stock';
 	}
 
 	/**
@@ -439,7 +439,7 @@ class WC_PT_Data {
 	 * @return bool
 	 */
 	private function is_variant_instock( $variant ) {
-		return 'instock' === $this->normalize_variant_status( $variant['status'] ?? '' );
+		return 'in_stock' === $this->normalize_variant_status( $variant['status'] ?? '' );
 	}
 
 	/**
@@ -510,7 +510,7 @@ class WC_PT_Data {
 				continue;
 			}
 
-			$instock = ! isset( $atomizer['instock'] ) || (bool) $atomizer['instock'];
+			$in_stock = ! isset( $atomizer['in_stock'] ) || (bool) $atomizer['in_stock'];
 			$available_sizes = array_map( 'intval', (array) ( $atomizer['available_sizes'] ?? [] ) );
 			$prices = (array) ( $atomizer['prices'] ?? [] );
 			$size_images = (array) ( $atomizer['size_images'] ?? [] );
@@ -528,7 +528,7 @@ class WC_PT_Data {
 				$total_price = $base_price + $atomizer_price;
 
 				$available = $base_available
-					&& $instock
+					&& $in_stock
 					&& $is_size_allowed
 					&& $price_per_ml > 0
 					&& $base_price > 0

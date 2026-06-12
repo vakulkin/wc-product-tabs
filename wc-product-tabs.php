@@ -20,14 +20,11 @@ define( 'WC_PT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-settings.php';
 require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-data.php';
 require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-acf.php';
-require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-api.php';
-
-require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-api-update.php';
+require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-api-poster-sync.php';
 require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-plugin.php';
 
 WC_PT_ACF::register_hooks();
-WC_PT_API::register_hooks();
-WC_PT_API_Update::register_hooks();
+WC_PT_API_Poster_Sync::register_hooks();
 
 /**
  * Bootstrap plugin after dependencies are loaded.

@@ -136,6 +136,7 @@ class WC_PT_Settings {
 			'tabs_priority' => $this->sanitize_tabs_priority( $input['tabs_priority'] ?? $defaults['tabs_priority'] ),
 			'atomizers'    => $this->normalize_atomizers( $atomizers_raw ),
 			'api_token'    => sanitize_text_field( $input['api_token'] ?? $defaults['api_token'] ),
+			'poster_api_token' => sanitize_text_field( $input['poster_api_token'] ?? $defaults['poster_api_token'] ),
 		];
 
 		if ( empty( $settings['rozpyv_sizes'] ) ) {
@@ -226,11 +227,16 @@ class WC_PT_Settings {
 							<p class="description"><?php echo esc_html__( 'Secret token for the /wp-json/wc-product-tabs/v1/products endpoint. Pass as: Authorization: Bearer &lt;token&gt;', 'wc-product-tabs' ); ?></p>
 						</td>
 					</tr>
-					<tr>
-						<th scope="row"><label for="wcpt-atomizers-json"><?php echo esc_html__( 'Atomizers JSON', 'wc-product-tabs' ); ?></label></th>
+					<tr>						<th scope="row"><label for="wcpt-poster-api-token"><?php echo esc_html__( 'Poster API Token', 'wc-product-tabs' ); ?></label></th>
+						<td>
+							<input id="wcpt-poster-api-token" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[poster_api_token]" type="text" value="<?php echo esc_attr( $settings['poster_api_token'] ?? '' ); ?>" class="regular-text" />
+							<p class="description"><?php echo esc_html__( 'Poster POS API token (format: account_id:token). Used for automatic price sync via menu.getProducts.', 'wc-product-tabs' ); ?></p>
+						</td>
+					</tr>
+					<tr>						<th scope="row"><label for="wcpt-atomizers-json"><?php echo esc_html__( 'Atomizers JSON', 'wc-product-tabs' ); ?></label></th>
 						<td>
 							<textarea id="wcpt-atomizers-json" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[atomizers_json]" rows="14" class="large-text code"><?php echo esc_textarea( (string) $atomizers_json ); ?></textarea>
-							<p class="description"><?php echo esc_html__( 'Use simplified format: id, title, image, instock, sizes. Example: "instock": true, "sizes": { "2": 10, "3": 15 }', 'wc-product-tabs' ); ?></p>
+							<p class="description"><?php echo esc_html__( 'Use simplified format: id, title, image, in_stock, sizes. Example: "in_stock": true, "sizes": { "2": 10, "3": 15 }', 'wc-product-tabs' ); ?></p>
 						</td>
 					</tr>
 				</table>
@@ -261,6 +267,7 @@ class WC_PT_Settings {
 		$settings['tabs_priority'] = $this->sanitize_tabs_priority( $settings['tabs_priority'] ?? $defaults['tabs_priority'] );
 		$settings['atomizers']    = $this->normalize_atomizers( $settings['atomizers'] ?? [] );
 		$settings['api_token']    = sanitize_text_field( $settings['api_token'] ?? $defaults['api_token'] );
+		$settings['poster_api_token'] = sanitize_text_field( $settings['poster_api_token'] ?? $defaults['poster_api_token'] );
 		$settings['atomizers_file_hash'] = sanitize_text_field( (string) ( $settings['atomizers_file_hash'] ?? $defaults['atomizers_file_hash'] ) );
 
 		if ( empty( $settings['rozpyv_sizes'] ) ) {
@@ -312,6 +319,16 @@ class WC_PT_Settings {
 	}
 
 	/**
+	 * Get Poster POS API token.
+	 *
+	 * @return string
+	 */
+	public function get_poster_api_token() {
+		$settings = $this->get_settings();
+		return (string) ( $settings['poster_api_token'] ?? '' );
+	}
+
+	/**
 	 * Get atomizers configuration from settings.
 	 *
 	 * @return array<int, array<string, mixed>>
@@ -345,6 +362,7 @@ class WC_PT_Settings {
 			'tabs_priority' => self::DEFAULT_TABS_PRIORITY,
 			'atomizers'    => [],
 			'api_token'    => '',
+			'poster_api_token' => '',
 			'atomizers_file_hash' => '',
 		];
 	}
@@ -429,10 +447,10 @@ class WC_PT_Settings {
 			}
 
 			$image = $this->sanitize_atomizer_image( $item['image'] ?? '' );
-			$instock = true;
-			if ( array_key_exists( 'instock', $item ) ) {
-				$instock = filter_var( $item['instock'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
-				$instock = null === $instock ? true : (bool) $instock;
+			$in_stock = true;
+			if ( array_key_exists( 'in_stock', $item ) ) {
+				$in_stock = filter_var( $item['in_stock'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
+				$in_stock = null === $in_stock ? true : (bool) $in_stock;
 			}
 
 			$sizes_map = [];
@@ -497,7 +515,7 @@ class WC_PT_Settings {
 				'title'           => '' !== $title ? $title : $id,
 				'image'           => $image,
 				'size_images'     => $size_images,
-				'instock'         => $instock,
+				'in_stock'         => $in_stock,
 				'sizes'           => $sizes_map,
 				'available_sizes' => $available_sizes,
 				'prices'          => $sizes_map,
@@ -567,7 +585,7 @@ class WC_PT_Settings {
 				'id'      => sanitize_key( $item['id'] ?? '' ),
 				'title'   => sanitize_text_field( $item['title'] ?? '' ),
 				'image'   => $this->sanitize_atomizer_image( $item['image'] ?? '' ),
-				'instock' => array_key_exists( 'instock', $item ) ? (bool) $item['instock'] : true,
+				'in_stock' => array_key_exists( 'in_stock', $item ) ? (bool) $item['in_stock'] : true,
 				'sizes'   => $normalized_sizes,
 			];
 		}

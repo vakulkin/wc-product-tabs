@@ -230,10 +230,10 @@ class WC_PT_ACF
                 'width' => $wrapper_width,
             ],
             'choices'       => [
-                'instock'    => 'instock',
-                'outofstock' => 'outofstock',
+                'in_stock'    => 'in_stock',
+                'out_of_stock' => 'out_of_stock',
             ],
-            'default_value' => 'outofstock',
+            'default_value' => 'out_of_stock',
             'allow_null'    => 0,
             'multiple'      => 0,
             'ui'            => 0,
