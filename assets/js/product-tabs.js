@@ -232,26 +232,26 @@
         renderNotifyForm: function (isInline, customDesc) {
             var html = '';
             var cls = isInline ? 'wct-notify-panel wct-notify-inline' : 'wct-notify-panel wct-notify-floating';
-            
+
             html += '<div class="' + cls + '">';
             html += '<div class="wct-notify-inner">';
             html += '<div class="wct-notify-header">';
             html += '<span class="wct-notify-title">' + esc(i18n('notify_title')) + '</span>';
             html += '</div>';
-            
-            var descHtml = customDesc 
-                ? customDesc 
+
+            var descHtml = customDesc
+                ? customDesc
                 : esc(i18n('notify_desc')) + ' <strong class="wct-notify-label-text"></strong>';
-                
+
             html += '<p class="wct-notify-desc">' + descHtml + '</p>';
             html += '<div class="wct-notify-form-row">';
-            html += '<input type="tel" class="wct-notify-phone" placeholder="' + esc(i18n('notify_placeholder')) + '" autocomplete="tel">';
+            html += '<input type="tel" class="wct-notify-phone" placeholder="' + esc(i18n('notify_placeholder')) + '" autocomplete="tel" maxlength="16">';
             html += '<button type="button" class="wct-notify-submit">' + esc(i18n('notify_submit')) + '</button>';
             html += '</div>';
             html += '<div class="wct-notify-message"></div>';
             html += '</div>';
             html += '</div>';
-            
+
             return html;
         },
 
@@ -327,6 +327,25 @@
                 if (e.which === 13) {
                     e.preventDefault();
                     self.submitNotify($(this).closest('.wct-notify-panel'));
+                }
+            });
+
+            // Notify panel — simple mask for phone (allows optional + and digits)
+            this.$container.on('input', '.wct-notify-phone', function () {
+                var val = $(this).val();
+                
+                // Remove everything except digits and plus
+                var cleaned = val.replace(/[^\d+]/g, '');
+                
+                // Ensure + only appears at the very beginning
+                if (cleaned.indexOf('+') > 0) {
+                    cleaned = cleaned.replace(/\+/g, function(match, offset) {
+                        return offset === 0 ? '+' : '';
+                    });
+                }
+                
+                if (val !== cleaned) {
+                    $(this).val(cleaned);
                 }
             });
 
@@ -668,78 +687,78 @@
                     );
                     this.$container.find('.wct-atomizers-wrap').hide();
                 } else if (s.size) {
-                var basePrice = Number((base && base.price_per_ml) || 0) * s.size;
-                var sizeIsAvailable = this.isRozpyvSizeAvailable(this.data.tabs.rozpyv, s.size);
+                    var basePrice = Number((base && base.price_per_ml) || 0) * s.size;
+                    var sizeIsAvailable = this.isRozpyvSizeAvailable(this.data.tabs.rozpyv, s.size);
 
-                if (!sizeIsAvailable || basePrice <= 0) {
-                    cartData = null;
-                    summaryHtml = this.renderSummaryRow(
-                        'Розпив ' + s.size + ' мл',
-                        '',
-                        i18n('select_option')
-                    );
-                } else {
-                    cartData = {
-                        tab: 'rozpyv',
-                        key: base.key || '',
-                        pos_id: base.pos_id || '',
-                        size_ml: s.size,
-                        price: basePrice,
-                        desc: 'Розпив ' + s.size + ' мл',
-                    };
+                    if (!sizeIsAvailable || basePrice <= 0) {
+                        cartData = null;
+                        summaryHtml = this.renderSummaryRow(
+                            'Розпив ' + s.size + ' мл',
+                            '',
+                            i18n('select_option')
+                        );
+                    } else {
+                        cartData = {
+                            tab: 'rozpyv',
+                            key: base.key || '',
+                            pos_id: base.pos_id || '',
+                            size_ml: s.size,
+                            price: basePrice,
+                            desc: 'Розпив ' + s.size + ' мл',
+                        };
 
-                    if (s.atomizer) {
-                        var atomizerOption = getRozpyvAtomizerOption(s.atomizer, s.size);
-                        var atomizerIsAvailable = !!(atomizerOption && atomizerOption.available);
+                        if (s.atomizer) {
+                            var atomizerOption = getRozpyvAtomizerOption(s.atomizer, s.size);
+                            var atomizerIsAvailable = !!(atomizerOption && atomizerOption.available);
 
-                        if (!atomizerIsAvailable) {
-                            this.state.atomizer = null;
+                            if (!atomizerIsAvailable) {
+                                this.state.atomizer = null;
+                                cartData = null;
+                                summaryHtml = this.renderSummaryRow(
+                                    'Розпив ' + s.size + ' мл',
+                                    formatPrice(basePrice, currency),
+                                    i18n('select_atomizer')
+                                );
+                                this.$container.find('.wct-atomizer').removeClass('active');
+                            } else {
+                                var aPrice = Number(atomizerOption.atomizer_price || 0);
+                                var finalPrice = Number(atomizerOption.total_price || 0);
+
+                                if (aPrice < 0 || finalPrice <= 0) {
+                                    cartData = null;
+                                    summaryHtml = this.renderSummaryRow(
+                                        'Розпив ' + s.size + ' мл',
+                                        '',
+                                        i18n('select_option')
+                                    );
+                                } else {
+                                    cartData.atomizer_id = s.atomizer.id;
+                                    cartData.atomizer_title = s.atomizer.title;
+                                    cartData.atomizer_price = aPrice;
+                                    cartData.price = finalPrice;
+                                    cartData.desc = 'Розпив ' + s.size + ' мл — ' + s.atomizer.title;
+
+                                    summaryHtml = this.renderSummaryRow(
+                                        cartData.desc,
+                                        formatPrice(cartData.price, currency),
+                                        ''
+                                    );
+
+                                    this.$container
+                                        .find('.wct-panel[data-tab="rozpyv"] .wct-tab-desc')
+                                        .text(base.desc || '');
+                                }
+                            }
+                        } else {
+                            // Size chosen but no atomizer yet — keep summary style consistent and block submit.
                             cartData = null;
                             summaryHtml = this.renderSummaryRow(
                                 'Розпив ' + s.size + ' мл',
                                 formatPrice(basePrice, currency),
                                 i18n('select_atomizer')
                             );
-                            this.$container.find('.wct-atomizer').removeClass('active');
-                        } else {
-                            var aPrice = Number(atomizerOption.atomizer_price || 0);
-                            var finalPrice = Number(atomizerOption.total_price || 0);
-
-                            if (aPrice < 0 || finalPrice <= 0) {
-                                cartData = null;
-                                summaryHtml = this.renderSummaryRow(
-                                    'Розпив ' + s.size + ' мл',
-                                    '',
-                                    i18n('select_option')
-                                );
-                            } else {
-                                cartData.atomizer_id = s.atomizer.id;
-                                cartData.atomizer_title = s.atomizer.title;
-                                cartData.atomizer_price = aPrice;
-                                cartData.price = finalPrice;
-                                cartData.desc = 'Розпив ' + s.size + ' мл — ' + s.atomizer.title;
-
-                                summaryHtml = this.renderSummaryRow(
-                                    cartData.desc,
-                                    formatPrice(cartData.price, currency),
-                                    ''
-                                );
-
-                                this.$container
-                                    .find('.wct-panel[data-tab="rozpyv"] .wct-tab-desc')
-                                    .text(base.desc || '');
-                            }
                         }
-                    } else {
-                        // Size chosen but no atomizer yet — keep summary style consistent and block submit.
-                        cartData = null;
-                        summaryHtml = this.renderSummaryRow(
-                            'Розпив ' + s.size + ' мл',
-                            formatPrice(basePrice, currency),
-                            i18n('select_atomizer')
-                        );
                     }
-                }
                 } else {
                     cartData = null;
                     summaryHtml = this.renderSummaryRow(
@@ -898,8 +917,9 @@
                 $np = this.$container.find('.wct-notify-panel.wct-notify-floating');
             }
             var phone = $np.find('.wct-notify-phone').val().trim();
+            var phoneRegex = /^\+?[0-9]{7,15}$/;
 
-            if (!phone) {
+            if (!phone || !phoneRegex.test(phone)) {
                 $np.find('.wct-notify-message')
                     .removeClass('wct-notify-success')
                     .addClass('wct-notify-error')
