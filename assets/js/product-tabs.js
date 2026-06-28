@@ -180,7 +180,19 @@
             var html = '<div class="wct-rozpyv">';
             var baseAvailable = tabData && tabData.base && tabData.base.available;
 
-            if (!baseAvailable) {
+            var anySizeAvailable = false;
+            if (baseAvailable && tabData && tabData.sizes) {
+                for (var i = 0; i < tabData.sizes.length; i++) {
+                    var s = String(tabData.sizes[i]);
+                    var opt = tabData.size_options && tabData.size_options[s];
+                    if (opt && opt.available) {
+                        anySizeAvailable = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!baseAvailable || !anySizeAvailable) {
                 // Globally OOS: show inline notify form; hide sizes and atomizers.
                 var descHtml = esc(i18n('notify_desc')) + ' <strong>' + esc(i18n('notify_rozpyv_label')) + '</strong>';
                 html += this.renderNotifyForm(true, descHtml);
@@ -189,16 +201,18 @@
                 return html;
             }
 
-            // Size selector — render all sizes; mark unavailable ones.
+            // Size selector — render only available sizes
             html += '<p class="wct-section-label">\u041e\u0431\'\u0454\u043c</p>';
             html += '<div class="wct-sizes">';
             if (tabData && tabData.sizes) {
                 tabData.sizes.forEach(function (size) {
                     var sizeOption = tabData.size_options && tabData.size_options[String(size)];
-                    var available = baseAvailable && !!(sizeOption && sizeOption.available);
-                    var cls = available ? 'wct-size-btn' : 'wct-size-btn out-of-stock';
-                    html += '<button type="button" class="' + cls + '" data-size="' + size + '">' +
-                        size + ' \u043c\u043b</button>';
+                    var available = !!(sizeOption && sizeOption.available);
+                    
+                    if (available) {
+                        html += '<button type="button" class="wct-size-btn" data-size="' + size + '">' +
+                            size + ' \u043c\u043b</button>';
+                    }
                 });
             }
             html += '</div>';
@@ -577,9 +591,9 @@
                         }
                     }
 
-                    $(this).removeClass('out-of-stock active');
+                    $(this).show().removeClass('out-of-stock active');
                 } else {
-                    $(this).addClass('out-of-stock').removeClass('active');
+                    $(this).hide().removeClass('active');
                 }
             });
         },
@@ -589,7 +603,7 @@
             var selectedIndex = null;
 
             if (preferredAtomizerId) {
-                $panel.find('.wct-atomizer:not(.out-of-stock)').each(function () {
+                $panel.find('.wct-atomizer:visible').each(function () {
                     if (selectedIndex !== null) {
                         return;
                     }
