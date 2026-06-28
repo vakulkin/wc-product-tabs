@@ -415,27 +415,13 @@ class WC_PT_Plugin
 			'flakony'  => 'Флакон',
 			'zalyszky' => 'Залишок',
 			'rozpyv'   => 'Розпив',
-			'regular'  => 'Звичайний',
+			'regular'  => 'Товар',
 		];
 
 		if (! empty($data['tab'])) {
 			$item_data[] = [
 				'name'  => 'Тип',
 				'value' => $tab_labels[$data['tab']] ?? esc_html($data['tab']),
-			];
-		}
-
-		if (! empty($data['key'])) {
-			$item_data[] = [
-				'name'  => 'Ключ',
-				'value' => esc_html($data['key']),
-			];
-		}
-
-		if (! empty($data['pos_id'])) {
-			$item_data[] = [
-				'name'  => 'POS ID',
-				'value' => esc_html($data['pos_id']),
 			];
 		}
 
