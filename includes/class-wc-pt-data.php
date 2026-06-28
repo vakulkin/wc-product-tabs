@@ -58,7 +58,7 @@ class WC_PT_Data {
 
 		if ( in_array( $this->settings->get_category_id( 'flakony' ), $categories, true ) ) {
 			$variants = $this->get_variants_from_acf( 'flakony', $product_id, $product_available );
-			if ( ! empty( $variants ) && $this->has_available_variants( $variants ) ) {
+			if ( ! empty( $variants ) ) {
 				$tabs['flakony'] = [
 					'label'    => 'Флакони',
 					'variants' => $variants,
@@ -68,7 +68,7 @@ class WC_PT_Data {
 
 		if ( in_array( $this->settings->get_category_id( 'zalyszky' ), $categories, true ) ) {
 			$variants = $this->get_variants_from_acf( 'zalyszky', $product_id, $product_available );
-			if ( ! empty( $variants ) && $this->has_available_variants( $variants ) ) {
+			if ( ! empty( $variants ) ) {
 				$tabs['zalyszky'] = [
 					'label'    => 'Залишки',
 					'variants' => $variants,
@@ -101,9 +101,7 @@ class WC_PT_Data {
 				'atomizers' => $rozpyv_atoms['atomizers'],
 			];
 
-			if ( ! $this->has_available_rozpyv_options( $tabs['rozpyv'] ) ) {
-				unset( $tabs['rozpyv'] );
-			}
+			// Always keep the rozpyv tab — unavailable options are shown as out-of-stock in the UI.
 		}
 
 		if ( empty( $tabs ) ) {
@@ -387,7 +385,7 @@ class WC_PT_Data {
 			$price_value = $this->to_float( $price_raw );
 			$old_price_value = $this->to_float( $old_price_raw );
 
-			// Rows without key or price are not valid options and must be hidden completely.
+			// Rows without both key and price are not valid options; skip them entirely.
 			if ( '' === $variant_key || '' === $price_raw ) {
 				continue;
 			}

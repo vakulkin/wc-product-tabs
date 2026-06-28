@@ -10,6 +10,7 @@
         $container: null,
         data: null,
         tabsPriority: ['flakony', 'rozpyv', 'zalyszky'],
+        notifyTarget: null,
 
         // Current selection state
         state: {
@@ -136,6 +137,9 @@
             html += '</form>';
             html += '</div>';
 
+            // Notify panel — rendered once, repositioned dynamically (floating).
+            html += this.renderNotifyForm(false);
+
             this.$container.html(html);
         },
 
@@ -174,49 +178,80 @@
 
         renderRozpyv: function (tabData) {
             var html = '<div class="wct-rozpyv">';
+            var baseAvailable = tabData && tabData.base && tabData.base.available;
 
-            if (!tabData || !tabData.base || !tabData.base.available) {
-                html += '<div class="wct-out-of-stock-badge">' + esc(i18n('out_of_stock')) + '</div>';
+            if (!baseAvailable) {
+                // Globally OOS: show inline notify form; hide sizes and atomizers.
+                var descHtml = esc(i18n('notify_desc')) + ' <strong>' + esc(i18n('notify_rozpyv_label')) + '</strong>';
+                html += this.renderNotifyForm(true, descHtml);
                 html += '<div class="wct-tab-desc"></div>';
                 html += '</div>';
                 return html;
             }
 
-            // Size selector
-            html += '<p class="wct-section-label">Обʼєм</p>';
+            // Size selector — render all sizes; mark unavailable ones.
+            html += '<p class="wct-section-label">\u041e\u0431\'\u0454\u043c</p>';
             html += '<div class="wct-sizes">';
-            tabData.sizes.forEach(function (size) {
-                var sizeOption = tabData.size_options && tabData.size_options[String(size)];
-                if (!sizeOption || !sizeOption.available) {
-                    return;
-                }
-
-                html += '<button type="button" class="wct-size-btn" data-size="' + size + '">' +
-                    size + ' мл</button>';
-            });
+            if (tabData && tabData.sizes) {
+                tabData.sizes.forEach(function (size) {
+                    var sizeOption = tabData.size_options && tabData.size_options[String(size)];
+                    var available = baseAvailable && !!(sizeOption && sizeOption.available);
+                    var cls = available ? 'wct-size-btn' : 'wct-size-btn out-of-stock';
+                    html += '<button type="button" class="' + cls + '" data-size="' + size + '">' +
+                        size + ' \u043c\u043b</button>';
+                });
+            }
             html += '</div>';
 
             // Atomizer selector (shown after size chosen)
             html += '<div class="wct-atomizers-wrap" style="display:none">';
-            html += '<p class="wct-section-label">Атомайзер</p>';
+            html += '<p class="wct-section-label">\u0410\u0442\u043e\u043c\u0430\u0439\u0437\u0435\u0440</p>';
             html += '<div class="wct-atomizers">';
-            tabData.atomizers.forEach(function (a, idx) {
-                var initialImage = resolveAtomizerImage(a.image);
-                var imgHtml = initialImage
-                    ? '<img src="' + esc(initialImage) +
-                    '" alt="' + esc(a.title) + '" class="wct-atomizer-img">'
-                    : '';
-                html += '<div class="wct-atomizer" data-atomizer-index="' + idx + '">';
-                html += imgHtml;
-                html += '<span class="wct-atomizer-title">' + esc(a.title) + '</span>';
-                html += '<span class="wct-atomizer-price"></span>';
-                html += '</div>';
-            });
+            if (tabData && tabData.atomizers) {
+                tabData.atomizers.forEach(function (a, idx) {
+                    var initialImage = resolveAtomizerImage(a.image);
+                    var imgHtml = initialImage
+                        ? '<img src="' + esc(initialImage) +
+                        '" alt="' + esc(a.title) + '" class="wct-atomizer-img">'
+                        : '';
+                    html += '<div class="wct-atomizer" data-atomizer-index="' + idx + '">';
+                    html += imgHtml;
+                    html += '<span class="wct-atomizer-title">' + esc(a.title) + '</span>';
+                    html += '<span class="wct-atomizer-price"></span>';
+                    html += '</div>';
+                });
+            }
             html += '</div>';
             html += '</div>';
 
             html += '<div class="wct-tab-desc"></div>';
             html += '</div>';
+            return html;
+        },
+
+        renderNotifyForm: function (isInline, customDesc) {
+            var html = '';
+            var cls = isInline ? 'wct-notify-panel wct-notify-inline' : 'wct-notify-panel wct-notify-floating';
+            
+            html += '<div class="' + cls + '">';
+            html += '<div class="wct-notify-inner">';
+            html += '<div class="wct-notify-header">';
+            html += '<span class="wct-notify-title">' + esc(i18n('notify_title')) + '</span>';
+            html += '</div>';
+            
+            var descHtml = customDesc 
+                ? customDesc 
+                : esc(i18n('notify_desc')) + ' <strong class="wct-notify-label-text"></strong>';
+                
+            html += '<p class="wct-notify-desc">' + descHtml + '</p>';
+            html += '<div class="wct-notify-form-row">';
+            html += '<input type="tel" class="wct-notify-phone" placeholder="' + esc(i18n('notify_placeholder')) + '" autocomplete="tel">';
+            html += '<button type="button" class="wct-notify-submit">' + esc(i18n('notify_submit')) + '</button>';
+            html += '</div>';
+            html += '<div class="wct-notify-message"></div>';
+            html += '</div>';
+            html += '</div>';
+            
             return html;
         },
 
@@ -229,66 +264,70 @@
                 self.switchTab($(this).data('tab'));
             });
 
-            // Variant selection (Flakony / Zalyszky) — out-of-stock variants are not clickable
-            this.$container.on('click', '.wct-variant:not(.out-of-stock)', function () {
-                var $panel = $(this).closest('.wct-panel');
+            // Variant selection — all variants clickable; OOS opens notify panel.
+            this.$container.on('click', '.wct-variant', function () {
+                var $el = $(this);
+                var $panel = $el.closest('.wct-panel');
                 var tabKey = $panel.data('tab');
-                var vIndex = $(this).data('variant-index');
-                var variant = self.data.tabs[tabKey].variants[vIndex];
-
-                $panel.find('.wct-variant').removeClass('selected');
-                $(this).addClass('selected');
-
-                // Show variant description below the options list
-                $panel.find('.wct-tab-desc').text(variant.desc || '');
-
-                self.state.tab = tabKey;
-                self.state.variant = variant;
-                self.state.size = null;
-                self.state.atomizer = null;
-                if (self.state.remembered[tabKey]) {
-                    self.state.remembered[tabKey].variantIndex = vIndex;
-                }
-
-                self.updateSummary();
+                var vIndex = $el.data('variant-index');
+                self.selectVariant(tabKey, vIndex, true);
             });
 
-            // Size selection (Rozpyv)
+            // Size selection — all sizes clickable; OOS opens notify panel.
             this.$container.on('click', '.wct-size-btn', function () {
                 var $panel = $(this).closest('.wct-panel');
                 var size = parseInt($(this).data('size'), 10) || 0;
-                var base = self.data.tabs.rozpyv.base || {};
+                self.selectRozpyvSize($panel, size, true);
+            });
 
-                $panel.find('.wct-size-btn').removeClass('active');
-                $(this).addClass('active');
+            // Atomizer selection — all atomizers clickable; OOS opens notify panel.
+            this.$container.on('click', '.wct-atomizer', function () {
+                var $el = $(this);
+                var $panel = $el.closest('.wct-panel');
+                var idx = $el.data('atomizer-index');
 
-                self.state.tab = 'rozpyv';
-                self.state.size = size;
+                if ($el.hasClass('out-of-stock')) {
+                    var atomizer = (self.data.tabs.rozpyv && self.data.tabs.rozpyv.atomizers)
+                        ? (self.data.tabs.rozpyv.atomizers[idx] || {})
+                        : {};
+                    $panel.find('.wct-atomizer').removeClass('active');
+                    $el.addClass('active');
+                    self.openNotifyPanel(
+                        $el,
+                        atomizer.title || '',
+                        {
+                            product_id: self.data.product_id,
+                            tab: 'rozpyv',
+                            size_ml: self.state.size || 0,
+                            atomizer_id: atomizer.id || '',
+                            label: (atomizer.title || '') +
+                                (self.state.size ? ' \u2014 ' + self.state.size + ' \u043c\u043b' : ''),
+                        }
+                    );
+                    return;
+                }
 
-                self.state.remembered.rozpyv.size = size;
-
-                // Show base rozpyv description once size is selected.
-                $panel.find('.wct-tab-desc').text(base.desc || '');
-
-                var $wrap = $panel.find('.wct-atomizers-wrap');
-                $wrap.show();
-
-                self.filterAtomizersForSize($panel, size);
-
-                // Try to keep previously selected atomizer when size changes.
-                var preferredAtomizerId = self.state.remembered.rozpyv.atomizerId;
-                self.selectAtomizerForSize($panel, size, preferredAtomizerId);
-
+                self.closeNotifyPanel();
+                self.setAtomizerSelection($panel, idx);
                 self.updateSummary();
             });
 
-            // Atomizer selection (Rozpyv)
-            this.$container.on('click', '.wct-atomizer:not(.hidden)', function () {
-                var $panel = $(this).closest('.wct-panel');
-                var idx = $(this).data('atomizer-index');
+            // Notify panel — close
+            this.$container.on('click', '.wct-notify-close', function () {
+                self.closeNotifyPanel();
+            });
 
-                self.setAtomizerSelection($panel, idx);
-                self.updateSummary();
+            // Notify panel — submit button (works for floating and inline panels)
+            this.$container.on('click', '.wct-notify-submit', function () {
+                self.submitNotify($(this).closest('.wct-notify-panel'));
+            });
+
+            // Notify panel — submit on Enter
+            this.$container.on('keydown', '.wct-notify-phone', function (e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    self.submitNotify($(this).closest('.wct-notify-panel'));
+                }
             });
 
             // Quantity controls
@@ -328,6 +367,9 @@
             this.state.size = null;
             this.state.atomizer = null;
 
+            // Close any open notify panel when switching tabs.
+            this.closeNotifyPanel();
+
             // Drop previous valid payload when moving between tabs.
             this.updateSummary();
 
@@ -335,46 +377,78 @@
         },
 
         restoreOrSelectOption: function (tabKey) {
+            var self = this;
             var $panel = this.$container.find('.wct-panel[data-tab="' + tabKey + '"]');
 
             if (tabKey === 'flakony' || tabKey === 'zalyszky') {
-                var rememberedVariantIndex = this.state.remembered[tabKey] ? this.state.remembered[tabKey].variantIndex : null;
-                var $rememberedVariant = rememberedVariantIndex !== null
-                    ? $panel.find('.wct-variant[data-variant-index="' + rememberedVariantIndex + '"]:not(.out-of-stock)')
-                    : $();
+                var rememberedVariantIndex = this.state.remembered[tabKey]
+                    ? this.state.remembered[tabKey].variantIndex
+                    : null;
 
-                if ($rememberedVariant.length) {
-                    $rememberedVariant.first().trigger('click');
-                    return;
-                }
-
-                $panel.find('.wct-variant:not(.out-of-stock):first').trigger('click');
-            } else if (tabKey === 'rozpyv') {
-                var rememberedSize = this.state.remembered.rozpyv.size;
-                var rozpyvTabData = this.data.tabs.rozpyv || {};
-                var $sizeBtn = $();
-
-                if (!rozpyvTabData.base || !rozpyvTabData.base.available) {
-                    this.state.size = null;
-                    this.state.atomizer = null;
-                    this.updateSummary();
-                    return;
-                }
-
-                if (rememberedSize !== null && this.isRozpyvSizeAvailable(rozpyvTabData, rememberedSize)) {
-                    $sizeBtn = $panel.find('.wct-size-btn[data-size="' + rememberedSize + '"]');
-                }
-
-                if (!$sizeBtn.length) {
-                    var firstAvailableSize = this.findFirstAvailableRozpyvSize(rozpyvTabData);
-                    if (firstAvailableSize !== null) {
-                        $sizeBtn = $panel.find('.wct-size-btn[data-size="' + firstAvailableSize + '"]');
+                // 1. Try remembered in-stock variant.
+                if (rememberedVariantIndex !== null) {
+                    var $rem = $panel.find(
+                        '.wct-variant[data-variant-index="' + rememberedVariantIndex + '"]:not(.out-of-stock)'
+                    );
+                    if ($rem.length) {
+                        self.selectVariant(tabKey, $rem.first().data('variant-index'), false);
+                        return;
                     }
                 }
 
-                if ($sizeBtn.length) {
-                    $sizeBtn.first().trigger('click');
+                // 2. First in-stock variant.
+                var $inStock = $panel.find('.wct-variant:not(.out-of-stock):first');
+                if ($inStock.length) {
+                    self.selectVariant(tabKey, $inStock.data('variant-index'), false);
                     return;
+                }
+
+                // 3. Fallback: first variant even if OOS — notify panel opens automatically.
+                var $first = $panel.find('.wct-variant:first');
+                if ($first.length) {
+                    self.selectVariant(tabKey, $first.data('variant-index'), true);
+                }
+
+            } else if (tabKey === 'rozpyv') {
+                var rememberedSize = this.state.remembered.rozpyv.size;
+                var rozpyvTabData = this.data.tabs.rozpyv || {};
+
+                // Globally OOS: inline notify form is rendered; just set notifyTarget.
+                if (!rozpyvTabData.base || !rozpyvTabData.base.available) {
+                    this.notifyTarget = {
+                        product_id: this.data.product_id,
+                        tab: 'rozpyv',
+                        size_ml: 0,
+                        label: i18n('notify_rozpyv_label'),
+                    };
+                    this.updateSummary();
+                    setTimeout(function () {
+                        $panel.find('.wct-notify-inline .wct-notify-phone').focus();
+                    }, 80);
+                    return;
+                }
+
+                // 1. Try remembered available size.
+                if (rememberedSize !== null && this.isRozpyvSizeAvailable(rozpyvTabData, rememberedSize)) {
+                    this.selectRozpyvSize($panel, rememberedSize, false);
+                    return;
+                }
+
+                // 2. First available size.
+                var firstAvailableSize = this.findFirstAvailableRozpyvSize(rozpyvTabData);
+                if (firstAvailableSize !== null) {
+                    this.selectRozpyvSize($panel, firstAvailableSize, false);
+                    return;
+                }
+
+                // 3. Fallback: first size button even if OOS — notify panel opens automatically.
+                var $firstSizeBtn = $panel.find('.wct-size-btn:first');
+                if ($firstSizeBtn.length) {
+                    var firstSize = parseInt($firstSizeBtn.data('size'), 10) || 0;
+                    if (firstSize) {
+                        this.selectRozpyvSize($panel, firstSize, true);
+                        return;
+                    }
                 }
 
                 this.state.size = null;
@@ -484,9 +558,9 @@
                         }
                     }
 
-                    $(this).removeClass('hidden active');
+                    $(this).removeClass('out-of-stock active');
                 } else {
-                    $(this).addClass('hidden').removeClass('active');
+                    $(this).addClass('out-of-stock').removeClass('active');
                 }
             });
         },
@@ -496,7 +570,7 @@
             var selectedIndex = null;
 
             if (preferredAtomizerId) {
-                $panel.find('.wct-atomizer:not(.hidden)').each(function () {
+                $panel.find('.wct-atomizer:not(.out-of-stock)').each(function () {
                     if (selectedIndex !== null) {
                         return;
                     }
@@ -509,7 +583,7 @@
             }
 
             if (selectedIndex === null) {
-                var $firstVisible = $panel.find('.wct-atomizer:not(.hidden):first');
+                var $firstVisible = $panel.find('.wct-atomizer:not(.out-of-stock):first');
                 if ($firstVisible.length) {
                     selectedIndex = $firstVisible.data('atomizer-index');
                 }
@@ -535,7 +609,7 @@
             }
 
             var $el = $panel.find('.wct-atomizer[data-atomizer-index="' + idx + '"]');
-            if (!$el.length || $el.hasClass('hidden')) {
+            if (!$el.length || $el.hasClass('out-of-stock')) {
                 this.state.atomizer = null;
                 return;
             }
@@ -694,7 +768,203 @@
             }
             return html;
         },
+
+        /* ---- Variant / size selection helpers ---- */
+
+        /**
+         * Select a variant by index. triggerNotify=false during auto-selection.
+         */
+        selectVariant: function (tabKey, vIndex, triggerNotify) {
+            var $tabPanel = this.$container.find('.wct-panel[data-tab="' + tabKey + '"]');
+            var tabData = this.data.tabs[tabKey];
+            if (!tabData || !tabData.variants) { return; }
+
+            var variant = tabData.variants[vIndex];
+            if (!variant) { return; }
+
+            $tabPanel.find('.wct-variant').removeClass('selected');
+            $tabPanel.find('.wct-variant[data-variant-index="' + vIndex + '"]').addClass('selected');
+
+            this.state.tab = tabKey;
+            this.state.variant = variant;
+            this.state.size = null;
+            this.state.atomizer = null;
+
+            if (!variant.available) {
+                if (triggerNotify) {
+                    this.openNotifyPanel(
+                        $tabPanel.find('.wct-variant[data-variant-index="' + vIndex + '"]'),
+                        variant.key || String(variant.index || vIndex),
+                        {
+                            product_id: this.data.product_id,
+                            tab: tabKey,
+                            key: variant.key || '',
+                            label: variant.key || String(variant.index || vIndex),
+                        }
+                    );
+                }
+                this.updateSummary();
+                return;
+            }
+
+            this.closeNotifyPanel();
+            $tabPanel.find('.wct-tab-desc').text(variant.desc || '');
+            if (this.state.remembered[tabKey]) {
+                this.state.remembered[tabKey].variantIndex = vIndex;
+            }
+            this.updateSummary();
+        },
+
+        /**
+         * Select a rozpyv size. triggerNotify=false during auto-selection.
+         */
+        selectRozpyvSize: function ($panel, size, triggerNotify) {
+            $panel.find('.wct-size-btn').removeClass('active');
+            $panel.find('.wct-size-btn[data-size="' + size + '"]').addClass('active');
+
+            if (!this.isRozpyvSizeAvailable(this.data.tabs.rozpyv || {}, size)) {
+                if (triggerNotify) {
+                    this.openNotifyPanel(
+                        $panel.find('.wct-size-btn[data-size="' + size + '"]'),
+                        size + ' \u043c\u043b',
+                        {
+                            product_id: this.data.product_id,
+                            tab: 'rozpyv',
+                            size_ml: size,
+                            label: size + ' \u043c\u043b',
+                        }
+                    );
+                }
+                this.updateSummary();
+                return;
+            }
+
+            this.closeNotifyPanel();
+
+            var base = (this.data.tabs.rozpyv && this.data.tabs.rozpyv.base)
+                ? this.data.tabs.rozpyv.base : {};
+            this.state.tab = 'rozpyv';
+            this.state.size = size;
+            this.state.remembered.rozpyv.size = size;
+
+            $panel.find('.wct-tab-desc').text(base.desc || '');
+            $panel.find('.wct-atomizers-wrap').show();
+
+            this.filterAtomizersForSize($panel, size);
+
+            var preferredAtomizerId = this.state.remembered.rozpyv.atomizerId;
+            this.selectAtomizerForSize($panel, size, preferredAtomizerId);
+
+            this.updateSummary();
+        },
+
+        /* ---- Notify panel ---- */
+
+        openNotifyPanel: function ($anchor, label, data) {
+            var self = this;
+            var $np = this.$container.find('.wct-notify-panel.wct-notify-floating');
+
+            $np.find('.wct-notify-label-text').text(label);
+            $np.find('.wct-notify-phone').val('');
+            $np.find('.wct-notify-message')
+                .text('')
+                .removeClass('wct-notify-success wct-notify-error')
+                .hide();
+            $np.find('.wct-notify-submit').prop('disabled', false).text(i18n('notify_submit'));
+
+            this.notifyTarget = data;
+
+            // Insert below the grid/flex that contains the anchor element.
+            var $grid = $anchor.closest('.wct-variants, .wct-sizes, .wct-atomizers');
+            if ($grid.length) {
+                $np.detach().insertAfter($grid).show();
+            } else {
+                $np.detach().insertAfter($anchor).show();
+            }
+
+            setTimeout(function () {
+                self.$container.find('.wct-notify-panel.wct-notify-floating .wct-notify-phone').focus();
+            }, 80);
+        },
+
+        closeNotifyPanel: function () {
+            this.notifyTarget = null;
+            this.$container.find('.wct-notify-panel.wct-notify-floating').hide();
+        },
+
+        submitNotify: function ($np) {
+            var self = this;
+            if (!$np || !$np.length) {
+                $np = this.$container.find('.wct-notify-panel.wct-notify-floating');
+            }
+            var phone = $np.find('.wct-notify-phone').val().trim();
+
+            if (!phone) {
+                $np.find('.wct-notify-message')
+                    .removeClass('wct-notify-success')
+                    .addClass('wct-notify-error')
+                    .text(i18n('notify_error_phone'))
+                    .show();
+                return;
+            }
+
+            var target = this.notifyTarget || {};
+            var notifyUrl = window.wcProductTabs.notify_url || '';
+
+            if (!notifyUrl) {
+                $np.find('.wct-notify-message')
+                    .removeClass('wct-notify-success')
+                    .addClass('wct-notify-error')
+                    .text(i18n('notify_error'))
+                    .show();
+                return;
+            }
+
+            // Build GET query string.
+            var params = new URLSearchParams({
+                phone: phone,
+                product_id: String(target.product_id || (this.data ? this.data.product_id : 0) || 0),
+                tab: target.tab || '',
+                key: target.key || '',
+                size_ml: String(target.size_ml || 0),
+                atomizer_id: target.atomizer_id || '',
+                label: target.label || '',
+            });
+            var sep = notifyUrl.indexOf('?') === -1 ? '?' : '&';
+            var fullUrl = notifyUrl + sep + params.toString();
+
+            var $btn = $np.find('.wct-notify-submit');
+            $btn.prop('disabled', true).text('\u2026');
+
+            fetch(fullUrl, { method: 'GET' })
+                .then(function (res) { return res.json(); })
+                .then(function (json) {
+                    var $msg = $np.find('.wct-notify-message');
+                    if (json && json.success) {
+                        $msg.removeClass('wct-notify-error')
+                            .addClass('wct-notify-success')
+                            .text(i18n('notify_success'))
+                            .show();
+                        $btn.prop('disabled', true).text(i18n('notify_submit'));
+                    } else {
+                        $msg.removeClass('wct-notify-success')
+                            .addClass('wct-notify-error')
+                            .text((json && json.message) ? json.message : i18n('notify_error'))
+                            .show();
+                        $btn.prop('disabled', false).text(i18n('notify_submit'));
+                    }
+                })
+                .catch(function () {
+                    $np.find('.wct-notify-message')
+                        .removeClass('wct-notify-success')
+                        .addClass('wct-notify-error')
+                        .text(i18n('notify_error'))
+                        .show();
+                    $btn.prop('disabled', false).text(i18n('notify_submit'));
+                });
+        },
     };
+
 
     /* =======================================================================
      * Helpers

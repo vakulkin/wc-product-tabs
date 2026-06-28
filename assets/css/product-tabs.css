@@ -141,9 +141,11 @@
 }
 
 .wct-variant.out-of-stock {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
+  cursor: pointer;
+}
+
+.wct-variant.out-of-stock:hover {
+  border-color: var(--wct-ring);
 }
 
 .wct-out-of-stock-badge {
@@ -245,6 +247,149 @@
   color: var(--wct-accent-fg);
 }
 
+.wct-size-btn.out-of-stock {
+  cursor: pointer;
+}
+
+/* ---------- Notify panel ---------- */
+
+.wct-notify-panel {
+  display: none;
+  margin: 10px 0 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--wct-border);
+  border-radius: var(--wct-radius);
+  background: #fff;
+  box-shadow: var(--wct-shadow);
+  animation: wctFadeIn 0.18s ease;
+}
+
+/* Inline panel for globally OOS rozpyv — always visible in its tab panel */
+.wct-notify-panel.wct-notify-inline {
+  display: block;
+  box-shadow: none;
+  border-color: var(--wct-border);
+  margin: 0 0 8px;
+}
+
+.wct-notify-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wct-notify-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wct-notify-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wct-fg);
+  line-height: 1.35;
+}
+
+.wct-notify-close {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--wct-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color var(--wct-transition), background var(--wct-transition);
+}
+
+.wct-notify-close:hover {
+  color: var(--wct-fg);
+  background: var(--wct-panel);
+}
+
+.wct-notify-desc {
+  margin: 0;
+  font-size: 12px;
+  color: var(--wct-muted);
+  line-height: 1.45;
+}
+
+.wct-notify-desc strong,
+.wct-notify-label-text {
+  color: var(--wct-fg);
+  font-weight: 600;
+}
+
+.wct-notify-form-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.wct-notify-phone {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--wct-border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--wct-fg);
+  background: #fff;
+  outline: none;
+  transition: border-color var(--wct-transition), box-shadow var(--wct-transition);
+}
+
+.wct-notify-phone:focus {
+  border-color: var(--wct-ring);
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25);
+}
+
+.wct-notify-submit {
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--wct-accent);
+  border-radius: 8px;
+  background: var(--wct-accent);
+  color: var(--wct-accent-fg);
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--wct-transition), transform var(--wct-transition);
+}
+
+.wct-notify-submit:hover {
+  transform: translateY(-1px);
+}
+
+.wct-notify-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.wct-notify-message {
+  display: none;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.wct-notify-message.wct-notify-success {
+  color: #15803d;
+}
+
+.wct-notify-message.wct-notify-error {
+  color: var(--wct-danger);
+}
+
 /* ---------- Rozpyv — atomizers ---------- */
 
 .wct-atomizers {
@@ -282,8 +427,12 @@
   box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.12);
 }
 
-.wct-atomizer.hidden {
-  display: none;
+.wct-atomizer.out-of-stock {
+  cursor: pointer;
+}
+
+.wct-atomizer.out-of-stock:hover {
+  border-color: var(--wct-ring);
 }
 
 .wct-atomizer-img {
@@ -546,7 +695,6 @@
   margin: 0 !important;
 }
 
-#wc-product-tabs .wct-variant.out-of-stock,
 #wc-product-tabs .wct-submit:disabled {
   pointer-events: none !important;
 }
@@ -600,6 +748,11 @@
   display: block !important;
 }
 
+#wc-product-tabs .wct-notify-panel.wct-notify-inline {
+  display: block !important;
+  box-shadow: none !important;
+}
+
 #wc-product-tabs .wct-variants {
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
   gap: 10px !important;
@@ -622,8 +775,7 @@
 }
 
 #wc-product-tabs .wct-variant.out-of-stock {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
+  cursor: pointer !important;
 }
 
 #wc-product-tabs .wct-variant-key {
@@ -708,8 +860,8 @@
   box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.12) !important;
 }
 
-#wc-product-tabs .wct-atomizer.hidden {
-  display: none !important;
+#wc-product-tabs .wct-atomizer.out-of-stock {
+  cursor: pointer !important;
 }
 
 #wc-product-tabs .wct-atomizer-img {
