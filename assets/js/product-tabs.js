@@ -141,6 +141,11 @@
             html += this.renderNotifyForm(false);
 
             this.$container.html(html);
+
+            var savedPhone = getSavedPhone();
+            if (savedPhone) {
+                this.$container.find('.wct-notify-phone').val(savedPhone);
+            }
         },
 
         renderVariants: function (variants, tabKey) {
@@ -208,7 +213,7 @@
                 tabData.sizes.forEach(function (size) {
                     var sizeOption = tabData.size_options && tabData.size_options[String(size)];
                     var available = !!(sizeOption && sizeOption.available);
-                    
+
                     if (available) {
                         html += '<button type="button" class="wct-size-btn" data-size="' + size + '">' +
                             size + ' \u043c\u043b</button>';
@@ -326,17 +331,17 @@
             // Notify panel — simple mask for phone (allows optional + and digits)
             this.$container.on('input', '.wct-notify-phone', function () {
                 var val = $(this).val();
-                
+
                 // Remove everything except digits and plus
                 var cleaned = val.replace(/[^\d+]/g, '');
-                
+
                 // Ensure + only appears at the very beginning
                 if (cleaned.indexOf('+') > 0) {
-                    cleaned = cleaned.replace(/\+/g, function(match, offset) {
+                    cleaned = cleaned.replace(/\+/g, function (match, offset) {
                         return offset === 0 ? '+' : '';
                     });
                 }
-                
+
                 if (val !== cleaned) {
                     $(this).val(cleaned);
                 }
@@ -863,7 +868,8 @@
             var $np = this.$container.find('.wct-notify-panel.wct-notify-floating');
 
             $np.find('.wct-notify-label-text').text(label);
-            $np.find('.wct-notify-phone').val('');
+            $np.find('.wct-notify-phone').val(getSavedPhone());
+
             $np.find('.wct-notify-message')
                 .text('')
                 .removeClass('wct-notify-success wct-notify-error')
@@ -923,7 +929,7 @@
             var activeTab = target.tab || this.state.tab || '';
             var activeVariant = this.state.variant || {};
             var activeKey = target.key || activeVariant.key || '';
-            
+
             if (activeTab === 'rozpyv' && !activeKey) {
                 var rozpyvBase = (this.data && this.data.tabs && this.data.tabs.rozpyv && this.data.tabs.rozpyv.base) || {};
                 activeKey = rozpyvBase.key || '';
@@ -946,11 +952,14 @@
                 .then(function (json) {
                     var $msg = $np.find('.wct-notify-message');
                     if (json && json.success) {
+                        savePhone(phone);
+                        self.$container.find('.wct-notify-phone').val(phone);
+
                         $msg.removeClass('wct-notify-error')
                             .addClass('wct-notify-success')
                             .text(i18n('notify_success'))
                             .show();
-                        $btn.prop('disabled', true).text(i18n('notify_submit'));
+                        $btn.prop('disabled', false).text(i18n('notify_submit'));
                     } else {
                         $msg.removeClass('wct-notify-success')
                             .addClass('wct-notify-error')
@@ -990,6 +999,20 @@
 
     function formatPrice(amount, currency) {
         return currency + ' ' + Number(amount || 0).toFixed(2);
+    }
+
+    function getSavedPhone() {
+        try {
+            return localStorage.getItem('wct_notify_phone') || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function savePhone(phone) {
+        try {
+            localStorage.setItem('wct_notify_phone', phone);
+        } catch (e) { }
     }
 
     function getAtomizerPriceForSize(atomizer, size) {

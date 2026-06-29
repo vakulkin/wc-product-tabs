@@ -846,7 +846,7 @@
 }
 
 #wc-product-tabs .wct-notify-message {
-  display: none !important;
+  display: none;
   font-size: 12px !important;
   font-weight: 500 !important;
   line-height: 1.4 !important;
