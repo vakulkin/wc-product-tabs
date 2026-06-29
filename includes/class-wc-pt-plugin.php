@@ -433,8 +433,6 @@ class WC_PT_Plugin
 
 		if ($key === 'tab') {
 			return $tab_labels[$val] ?? $val;
-		} elseif ($key === 'size_ml') {
-			return $val . ' мл';
 		} elseif ($key === 'price' || $key === 'atomizer_price') {
 			return $val . ' ' . get_woocommerce_currency_symbol();
 		}
