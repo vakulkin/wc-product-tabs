@@ -194,7 +194,7 @@
 
             if (!baseAvailable || !anySizeAvailable) {
                 // Globally OOS: show inline notify form; hide sizes and atomizers.
-                var descHtml = esc(i18n('notify_desc')) + ' <strong>' + esc(i18n('notify_rozpyv_label')) + '</strong>';
+                var descHtml = esc(i18n('notify_desc_global'));
                 html += this.renderNotifyForm(true, descHtml);
                 html += '<div class="wct-tab-desc"></div>';
                 html += '</div>';
@@ -255,7 +255,7 @@
 
             var descHtml = customDesc
                 ? customDesc
-                : esc(i18n('notify_desc')) + ' <strong class="wct-notify-label-text"></strong>';
+                : esc(i18n('notify_desc')) + ' <strong class="wct-notify-label-text"></strong>.';
 
             html += '<p class="wct-notify-desc">' + descHtml + '</p>';
             html += '<div class="wct-notify-form-row">';
