@@ -421,9 +421,10 @@ class WC_PT_Plugin
 	 *
 	 * @param string $key Meta key.
 	 * @param string $val Meta value.
+	 * @param array  $data Optional full data array for context.
 	 * @return string Formatted value.
 	 */
-	private function format_meta_value($key, $val)
+	private function format_meta_value($key, $val, $data = [])
 	{
 		$tab_labels = [
 			'flakony'  => 'Флакон',
@@ -433,7 +434,13 @@ class WC_PT_Plugin
 
 		if ($key === 'tab') {
 			return $tab_labels[$val] ?? $val;
-		} elseif ($key === 'price' || $key === 'atomizer_price') {
+		} elseif ($key === 'price') {
+			$base_price = (float) $val;
+			if (!empty($data['atomizer_price'])) {
+				$base_price -= (float) $data['atomizer_price'];
+			}
+			return $base_price . ' ' . get_woocommerce_currency_symbol();
+		} elseif ($key === 'atomizer_price') {
 			return $val . ' ' . get_woocommerce_currency_symbol();
 		}
 
@@ -460,7 +467,7 @@ class WC_PT_Plugin
 			if (isset($data[$key]) && $data[$key] !== '') {
 				$item_data[] = [
 					'name'  => $label,
-					'value' => esc_html($this->format_meta_value($key, $data[$key])),
+					'value' => esc_html($this->format_meta_value($key, $data[$key], $data)),
 				];
 			}
 		}
@@ -516,6 +523,12 @@ class WC_PT_Plugin
 
 		$is_admin = is_admin();
 
+		// Convert $formatted_meta to associative array for format_meta_value context
+		$meta_data_array = [];
+		foreach ($formatted_meta as $meta) {
+			$meta_data_array[$meta->key] = $meta->value;
+		}
+
 		foreach ($formatted_meta as $key => $meta) {
 			if (isset($labels[$meta->key])) {
 				if ('pos_id' === $meta->key && ! $is_admin) {
@@ -525,7 +538,7 @@ class WC_PT_Plugin
 
 				// Apply human-friendly label
 				$meta->display_key = $labels[$meta->key];
-				$meta->display_value = $this->format_meta_value($meta->key, $meta->value);
+				$meta->display_value = $this->format_meta_value($meta->key, $meta->value, $meta_data_array);
 			}
 		}
 
