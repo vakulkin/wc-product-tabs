@@ -434,6 +434,8 @@ class WC_PT_Plugin
 
 		if ($key === 'tab') {
 			return $tab_labels[$val] ?? $val;
+		} elseif ($key === 'size_ml') {
+			return $val . ' ml';
 		} elseif ($key === 'price') {
 			$base_price = (float) $val;
 			if (!empty($data['atomizer_price'])) {
