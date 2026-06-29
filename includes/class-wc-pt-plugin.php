@@ -414,20 +414,20 @@ class WC_PT_Plugin
 		$data = $cart_item['wc_product_tab_data'];
 
 		$fields = [
-			'tab'            => 'tab',
-			'key'            => 'key',
-			'price'          => 'price',
-			'size_ml'        => 'size_ml',
-			'atomizer_id'    => 'atomizer_id',
-			'atomizer_title' => 'atomizer_title',
-			'atomizer_price' => 'atomizer_price',
-			'desc'           => 'desc',
+			'tab',
+			'key',
+			'price',
+			'size_ml',
+			'atomizer_id',
+			'atomizer_title',
+			'atomizer_price',
+			'desc',
 		];
 
-		foreach ($fields as $key => $label) {
+		foreach ($fields as $key) {
 			if (isset($data[$key]) && $data[$key] !== '') {
 				$item_data[] = [
-					'name'  => $label,
+					'name'  => $key,
 					'value' => esc_html($data[$key]),
 				];
 			}
