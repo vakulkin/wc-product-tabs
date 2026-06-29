@@ -80,7 +80,7 @@ class WC_PT_Plugin
 		add_action('woocommerce_before_calculate_totals', [$this, 'adjust_cart_item_price']);
 		add_filter('woocommerce_get_item_data', [$this, 'display_cart_item_data'], 10, 2);
 		add_action('woocommerce_checkout_create_order_line_item', [$this, 'add_order_item_meta'], 10, 4);
-		add_filter('woocommerce_order_item_get_formatted_meta_data', [$this, 'hide_pos_id_from_users'], 10, 1);
+		add_filter('woocommerce_order_item_get_formatted_meta_data', [$this, 'format_order_item_meta'], 10, 2);
 	}
 
 	/**
@@ -400,6 +400,49 @@ class WC_PT_Plugin
 	}
 
 	/**
+	 * Get metadata labels for display.
+	 *
+	 * @return array<string, string>
+	 */
+	private function get_meta_labels()
+	{
+		return [
+			'tab'            => 'Тип',
+			'key'            => 'Варіант',
+			'price'          => 'Ціна',
+			'size_ml'        => "Об'єм",
+			'atomizer_title' => 'Атомайзер',
+			'atomizer_price' => 'Ціна атомайзера',
+		];
+	}
+
+	/**
+	 * Format metadata value for display.
+	 *
+	 * @param string $key Meta key.
+	 * @param string $val Meta value.
+	 * @return string Formatted value.
+	 */
+	private function format_meta_value($key, $val)
+	{
+		$tab_labels = [
+			'flakony'  => 'Флакон',
+			'zalyszky' => 'Залишок',
+			'rozpyv'   => 'Розпив',
+		];
+
+		if ($key === 'tab') {
+			return $tab_labels[$val] ?? $val;
+		} elseif ($key === 'size_ml') {
+			return $val . ' мл';
+		} elseif ($key === 'price' || $key === 'atomizer_price') {
+			return $val . ' ' . get_woocommerce_currency_symbol();
+		}
+
+		return $val;
+	}
+
+	/**
 	 * Display custom selection data in cart and checkout.
 	 *
 	 * @param array<int, array<string, string>> $item_data Existing rendered item data.
@@ -413,23 +456,13 @@ class WC_PT_Plugin
 		}
 
 		$data = $cart_item['wc_product_tab_data'];
+		$labels = $this->get_meta_labels();
 
-		$fields = [
-			'tab',
-			'key',
-			'price',
-			'size_ml',
-			'atomizer_id',
-			'atomizer_title',
-			'atomizer_price',
-			'desc',
-		];
-
-		foreach ($fields as $key) {
+		foreach ($labels as $key => $label) {
 			if (isset($data[$key]) && $data[$key] !== '') {
 				$item_data[] = [
-					'name'  => $key,
-					'value' => esc_html($data[$key]),
+					'name'  => $label,
+					'value' => esc_html($this->format_meta_value($key, $data[$key])),
 				];
 			}
 		}
@@ -460,10 +493,8 @@ class WC_PT_Plugin
 			'pos_id',
 			'price',
 			'size_ml',
-			'atomizer_id',
 			'atomizer_title',
 			'atomizer_price',
-			'desc',
 		];
 
 		foreach ($fields as $key) {
@@ -474,20 +505,29 @@ class WC_PT_Plugin
 	}
 
 	/**
-	 * Hide pos_id from frontend order view.
+	 * Format order item metadata for clean human display.
 	 *
-	 * @param array $formatted_meta Array of formatted meta objects.
-	 * @return array
+	 * @param array<int, object> $formatted_meta Formatted meta elements.
+	 * @param WC_Order_Item      $item Order item object.
+	 * @return array<int, object>
 	 */
-	public function hide_pos_id_from_users($formatted_meta)
+	public function format_order_item_meta($formatted_meta, $item)
 	{
-		if (is_admin()) {
-			return $formatted_meta;
-		}
+		$labels = $this->get_meta_labels();
+		$labels['pos_id'] = 'POS ID';
+
+		$is_admin = is_admin();
 
 		foreach ($formatted_meta as $key => $meta) {
-			if (isset($meta->key) && 'pos_id' === $meta->key) {
-				unset($formatted_meta[$key]);
+			if (isset($labels[$meta->key])) {
+				if ('pos_id' === $meta->key && ! $is_admin) {
+					unset($formatted_meta[$key]);
+					continue;
+				}
+
+				// Apply human-friendly label
+				$meta->display_key = $labels[$meta->key];
+				$meta->display_value = $this->format_meta_value($meta->key, $meta->value);
 			}
 		}
 
