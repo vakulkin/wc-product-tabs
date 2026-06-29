@@ -79,6 +79,8 @@ class WC_PT_Plugin
 		add_filter('woocommerce_get_cart_item_from_session', [$this, 'get_cart_item_from_session'], 10, 2);
 		add_action('woocommerce_before_calculate_totals', [$this, 'adjust_cart_item_price']);
 		add_filter('woocommerce_get_item_data', [$this, 'display_cart_item_data'], 10, 2);
+		add_action('woocommerce_checkout_create_order_line_item', [$this, 'add_order_item_meta'], 10, 4);
+		add_filter('woocommerce_order_item_get_formatted_meta_data', [$this, 'hide_pos_id_from_users'], 10, 1);
 	}
 
 	/**
@@ -411,42 +413,84 @@ class WC_PT_Plugin
 
 		$data = $cart_item['wc_product_tab_data'];
 
-		$tab_labels = [
-			'flakony'  => 'Флакон',
-			'zalyszky' => 'Залишок',
-			'rozpyv'   => 'Розпив',
-			'regular'  => 'Товар',
+		$fields = [
+			'tab'            => 'tab',
+			'key'            => 'key',
+			'price'          => 'price',
+			'size_ml'        => 'size_ml',
+			'atomizer_id'    => 'atomizer_id',
+			'atomizer_title' => 'atomizer_title',
+			'atomizer_price' => 'atomizer_price',
+			'desc'           => 'desc',
 		];
 
-		if (! empty($data['tab'])) {
-			$item_data[] = [
-				'name'  => 'Тип',
-				'value' => $tab_labels[$data['tab']] ?? esc_html($data['tab']),
-			];
-		}
-
-		if (! empty($data['desc'])) {
-			$item_data[] = [
-				'name'  => 'Опис',
-				'value' => esc_html($data['desc']),
-			];
-		}
-
-		if (! empty($data['size_ml'])) {
-			$item_data[] = [
-				'name'  => "Об'єм",
-				'value' => esc_html($data['size_ml']) . ' мл',
-			];
-		}
-
-		if (! empty($data['atomizer_title'])) {
-			$item_data[] = [
-				'name'  => 'Атомайзер',
-				'value' => esc_html($data['atomizer_title']),
-			];
+		foreach ($fields as $key => $label) {
+			if (isset($data[$key]) && $data[$key] !== '') {
+				$item_data[] = [
+					'name'  => $label,
+					'value' => esc_html($data[$key]),
+				];
+			}
 		}
 
 		return $item_data;
+	}
+
+	/**
+	 * Add custom data to order line item.
+	 *
+	 * @param WC_Order_Item_Product $item Order item.
+	 * @param string                $cart_item_key Cart item key.
+	 * @param array                 $values Cart item values.
+	 * @param WC_Order              $order Order.
+	 * @return void
+	 */
+	public function add_order_item_meta($item, $cart_item_key, $values, $order)
+	{
+		if (empty($values['wc_product_tab_data'])) {
+			return;
+		}
+
+		$data = $values['wc_product_tab_data'];
+
+		$fields = [
+			'tab',
+			'key',
+			'pos_id',
+			'price',
+			'size_ml',
+			'atomizer_id',
+			'atomizer_title',
+			'atomizer_price',
+			'desc',
+		];
+
+		foreach ($fields as $key) {
+			if (isset($data[$key]) && $data[$key] !== '') {
+				$item->add_meta_data($key, $data[$key], true);
+			}
+		}
+	}
+
+	/**
+	 * Hide pos_id from frontend order view.
+	 *
+	 * @param array $formatted_meta Array of formatted meta objects.
+	 * @return array
+	 */
+	public function hide_pos_id_from_users($formatted_meta)
+	{
+		if (is_admin()) {
+			return $formatted_meta;
+		}
+
+		foreach ($formatted_meta as $key => $meta) {
+			if (isset($meta->key) && 'pos_id' === $meta->key) {
+				unset($formatted_meta[$key]);
+			}
+		}
+
+		return $formatted_meta;
 	}
 
 	/**
