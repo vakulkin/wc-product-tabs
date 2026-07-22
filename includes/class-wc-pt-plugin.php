@@ -76,11 +76,14 @@ class WC_PT_Plugin
 		add_action('woocommerce_after_add_to_cart_form', [$this, 'maybe_end_hide_cart_form']);
 		add_action('woocommerce_single_product_summary', [$this, 'render_tabs_container'], 25);
 		add_filter('woocommerce_add_cart_item_data', [$this, 'add_cart_item_data'], 10, 3);
-		add_filter('woocommerce_get_cart_item_from_session', [$this, 'get_cart_item_from_session'], 10, 2);
 		add_action('woocommerce_before_calculate_totals', [$this, 'adjust_cart_item_price']);
 		add_filter('woocommerce_get_item_data', [$this, 'display_cart_item_data'], 10, 2);
 		add_action('woocommerce_checkout_create_order_line_item', [$this, 'add_order_item_meta'], 10, 4);
 		add_filter('woocommerce_order_item_get_formatted_meta_data', [$this, 'format_order_item_meta'], 10, 2);
+		add_action('woocommerce_process_product_meta', [$this, 'sync_product_price_bounds_on_save'], 25, 1);
+		add_action('save_post_product', [$this, 'sync_product_price_bounds_on_save'], 25, 1);
+		add_action('acf/save_post', [$this, 'sync_acf_price_bounds_on_save'], 25, 1);
+		add_action('woocommerce_product_set_stock', [$this, 'sync_stock_price_bounds_on_change'], 10, 1);
 	}
 
 	/**
@@ -340,6 +343,7 @@ class WC_PT_Plugin
 		}
 
 		$items_to_remove = [];
+		$price_updated   = false;
 
 		foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
 			if (isset($cart_item['data']) && 'simple' !== $cart_item['data']->get_type()) {
@@ -356,10 +360,11 @@ class WC_PT_Plugin
 
 			if (! $tab_data) {
 				$tabs_data = $this->data->get_product_tabs_data($cart_item['product_id']);
-				if ($tabs_data) {
+				if ($tabs_data && ! empty($tabs_data['tabs'])) {
 					$tab_data = $this->data->get_first_option($tabs_data['tabs']);
 					if ($tab_data) {
 						WC()->cart->cart_contents[$cart_item_key]['wc_product_tab_data'] = $tab_data;
+						$price_updated = true;
 					} else {
 						$items_to_remove[] = $cart_item_key;
 						continue;
@@ -367,9 +372,25 @@ class WC_PT_Plugin
 				}
 			} else {
 				$verified_tab_data = $this->data->verify_and_build_tab_data($cart_item['product_id'], $tab_data);
+
+				// Fallback: if specific option is no longer available, attempt to load first available option for this product
+				if (! $verified_tab_data) {
+					$tabs_data = $this->data->get_product_tabs_data($cart_item['product_id']);
+					if ($tabs_data && ! empty($tabs_data['tabs'])) {
+						$verified_tab_data = $this->data->get_first_option($tabs_data['tabs']);
+					}
+				}
+
 				if (! $verified_tab_data) {
 					$items_to_remove[] = $cart_item_key;
 					continue;
+				}
+
+				$old_cart_price = isset($tab_data['price']) ? (float) $tab_data['price'] : 0.0;
+				$new_cart_price = isset($verified_tab_data['price']) ? (float) $verified_tab_data['price'] : 0.0;
+
+				if ($old_cart_price > 0 && abs($old_cart_price - $new_cart_price) > 0.01) {
+					$price_updated = true;
 				}
 
 				$tab_data = $verified_tab_data;
@@ -393,8 +414,14 @@ class WC_PT_Plugin
 				$cart->remove_cart_item($cart_item_key);
 			}
 
-			if (! wc_has_notice(__('Деякі товари були видалені з кошика через некоректну ціну.', 'wc-product-tabs'), 'error')) {
-				wc_add_notice(__('Деякі товари були видалені з кошика через некоректну ціну.', 'wc-product-tabs'), 'error');
+			if (! wc_has_notice(__('Деякі товари були видалені з кошика, оскільки їх немає в наявності.', 'wc-product-tabs'), 'error')) {
+				wc_add_notice(__('Деякі товари були видалені з кошика, оскільки їх немає в наявності.', 'wc-product-tabs'), 'error');
+			}
+		}
+
+		if ($price_updated && empty($items_to_remove)) {
+			if (! wc_has_notice(__('Ціну товарів у кошику було оновлено відповідно до актуальних цін.', 'wc-product-tabs'), 'notice')) {
+				wc_add_notice(__('Ціну товарів у кошику було оновлено відповідно до актуальних цін.', 'wc-product-tabs'), 'notice');
 			}
 		}
 	}
@@ -450,6 +477,22 @@ class WC_PT_Plugin
 	}
 
 	/**
+	 * Determine whether a metadata key should be rendered for display.
+	 *
+	 * @param string $key Meta key.
+	 * @param string $tab_slug Current item tab slug.
+	 * @return bool
+	 */
+	private function should_render_meta_key($key, $tab_slug)
+	{
+		if ('price' === $key && 'rozpyv' !== $tab_slug) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
 	 * Display custom selection data in cart and checkout.
 	 *
 	 * @param array<int, array<string, string>> $item_data Existing rendered item data.
@@ -462,11 +505,16 @@ class WC_PT_Plugin
 			return $item_data;
 		}
 
-		$data = $cart_item['wc_product_tab_data'];
-		$labels = $this->get_meta_labels();
+		$data     = $cart_item['wc_product_tab_data'];
+		$labels   = $this->get_meta_labels();
+		$tab_slug = (string) ($data['tab'] ?? '');
 
 		foreach ($labels as $key => $label) {
 			if (isset($data[$key]) && $data[$key] !== '') {
+				if (! $this->should_render_meta_key($key, $tab_slug)) {
+					continue;
+				}
+
 				$item_data[] = [
 					'name'  => $label,
 					'value' => esc_html($this->format_meta_value($key, $data[$key], $data)),
@@ -492,8 +540,7 @@ class WC_PT_Plugin
 			return;
 		}
 
-		$data = $values['wc_product_tab_data'];
-
+		$data   = $values['wc_product_tab_data'];
 		$fields = [
 			'tab',
 			'key',
@@ -520,10 +567,9 @@ class WC_PT_Plugin
 	 */
 	public function format_order_item_meta($formatted_meta, $item)
 	{
-		$labels = $this->get_meta_labels();
+		$labels           = $this->get_meta_labels();
 		$labels['pos_id'] = 'POS ID';
-
-		$is_admin = is_admin();
+		$is_admin         = is_admin();
 
 		// Convert $formatted_meta to associative array for format_meta_value context
 		$meta_data_array = [];
@@ -531,7 +577,14 @@ class WC_PT_Plugin
 			$meta_data_array[$meta->key] = $meta->value;
 		}
 
+		$tab_slug = (string) ($meta_data_array['tab'] ?? '');
+
 		foreach ($formatted_meta as $key => $meta) {
+			if (! $this->should_render_meta_key($meta->key, $tab_slug)) {
+				unset($formatted_meta[$key]);
+				continue;
+			}
+
 			if (isset($labels[$meta->key])) {
 				if ('pos_id' === $meta->key && ! $is_admin) {
 					unset($formatted_meta[$key]);
@@ -539,7 +592,7 @@ class WC_PT_Plugin
 				}
 
 				// Apply human-friendly label
-				$meta->display_key = $labels[$meta->key];
+				$meta->display_key   = $labels[$meta->key];
 				$meta->display_value = $this->format_meta_value($meta->key, $meta->value, $meta_data_array);
 			}
 		}
@@ -607,5 +660,47 @@ class WC_PT_Plugin
 
 		$tabs_data = $this->data->get_product_tabs_data($product_id);
 		return empty($tabs_data) || empty($tabs_data['tabs']);
+	}
+
+	/**
+	 * Sync price bounds on WooCommerce product admin save.
+	 *
+	 * @param int $product_id Product ID.
+	 * @return void
+	 */
+	public function sync_product_price_bounds_on_save($product_id)
+	{
+		$product_id = (int) $product_id;
+		if ($product_id <= 0 || wp_is_post_revision($product_id) || wp_is_post_autosave($product_id)) {
+			return;
+		}
+
+		$this->data->sync_product_price_bounds($product_id);
+	}
+
+	/**
+	 * Sync price bounds on ACF post save.
+	 *
+	 * @param int|string $post_id Post ID.
+	 * @return void
+	 */
+	public function sync_acf_price_bounds_on_save($post_id)
+	{
+		if ('product' === get_post_type($post_id)) {
+			$this->data->sync_product_price_bounds((int) $post_id);
+		}
+	}
+
+	/**
+	 * Sync price bounds on WooCommerce stock status change.
+	 *
+	 * @param WC_Product $product WooCommerce product object.
+	 * @return void
+	 */
+	public function sync_stock_price_bounds_on_change($product)
+	{
+		if (is_object($product) && method_exists($product, 'get_id')) {
+			$this->data->sync_product_price_bounds((int) $product->get_id());
+		}
 	}
 }

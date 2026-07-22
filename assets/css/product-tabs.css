@@ -492,6 +492,12 @@
   line-height: 1.1;
 }
 
+.wct-summary-old-price {
+  font-size: 14px;
+  line-height: 1.1;
+  color: var(--wct-muted);
+}
+
 .wct-summary-subtext {
   flex-basis: 100%;
   font-size: 12px;
@@ -1009,6 +1015,11 @@
   font-size: 20px !important;
   font-weight: 700 !important;
   color: var(--wct-fg) !important;
+}
+
+#wc-product-tabs .wct-summary-old-price {
+  font-size: 14px !important;
+  color: var(--wct-muted) !important;
 }
 
 #wc-product-tabs .wct-summary-subtext {

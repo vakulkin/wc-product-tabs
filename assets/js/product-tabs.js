@@ -647,11 +647,12 @@
             var s = this.state;
             var cartData = null;
             var currency = window.wcProductTabs.currency || '';
-            var summaryHtml = this.renderSummaryRow('', null, null);
+            var summaryHtml = this.renderSummaryRow('', null, null, null);
 
             if ((s.tab === 'flakony' || s.tab === 'zalyszky') && s.variant) {
                 var v = s.variant;
                 var variantPrice = Number(v.price_value || 0);
+                var variantOldPrice = parseFloat(v.old_price || 0);
                 var variantIsAvailable = !!v.available && variantPrice > 0;
 
                 if (variantIsAvailable) {
@@ -662,10 +663,12 @@
                         price: variantPrice,
                         desc: v.desc || '',
                     };
+                    var oldPriceText = (variantOldPrice > variantPrice) ? formatPrice(variantOldPrice, currency) : null;
                     summaryHtml = this.renderSummaryRow(
                         v.key || 'Варіант',
                         formatPrice(cartData.price, currency),
-                        ''
+                        '',
+                        oldPriceText
                     );
                 } else {
                     cartData = null;
@@ -688,7 +691,10 @@
                     );
                     this.$container.find('.wct-atomizers-wrap').hide();
                 } else if (s.size) {
-                    var basePrice = Number((base && base.price_per_ml) || 0) * s.size;
+                    var pricePerMl = Number((base && base.price_per_ml) || 0);
+                    var oldPricePerMl = parseFloat((base && base.old_price) || 0);
+                    var basePrice = pricePerMl * s.size;
+                    var oldBasePrice = (oldPricePerMl > pricePerMl && pricePerMl > 0) ? (oldPricePerMl * s.size) : 0;
                     var sizeIsAvailable = this.isRozpyvSizeAvailable(this.data.tabs.rozpyv, s.size);
 
                     if (!sizeIsAvailable || basePrice <= 0) {
@@ -708,6 +714,8 @@
                             desc: 'Розпив ' + s.size + ' мл',
                         };
 
+                        var baseOldPriceText = (oldBasePrice > basePrice) ? formatPrice(oldBasePrice, currency) : null;
+
                         if (s.atomizer) {
                             var atomizerOption = getRozpyvAtomizerOption(s.atomizer, s.size);
                             var atomizerIsAvailable = !!(atomizerOption && atomizerOption.available);
@@ -718,12 +726,15 @@
                                 summaryHtml = this.renderSummaryRow(
                                     'Розпив ' + s.size + ' мл',
                                     formatPrice(basePrice, currency),
-                                    i18n('select_atomizer')
+                                    i18n('select_atomizer'),
+                                    baseOldPriceText
                                 );
                                 this.$container.find('.wct-atomizer').removeClass('active');
                             } else {
                                 var aPrice = Number(atomizerOption.atomizer_price || 0);
                                 var finalPrice = Number(atomizerOption.total_price || 0);
+                                var oldFinalPrice = (oldBasePrice > 0) ? (oldBasePrice + aPrice) : 0;
+                                var finalOldPriceText = (oldFinalPrice > finalPrice) ? formatPrice(oldFinalPrice, currency) : null;
 
                                 if (aPrice < 0 || finalPrice <= 0) {
                                     cartData = null;
@@ -742,7 +753,8 @@
                                     summaryHtml = this.renderSummaryRow(
                                         cartData.desc,
                                         formatPrice(cartData.price, currency),
-                                        ''
+                                        '',
+                                        finalOldPriceText
                                     );
 
                                     this.$container
@@ -756,7 +768,8 @@
                             summaryHtml = this.renderSummaryRow(
                                 'Розпив ' + s.size + ' мл',
                                 formatPrice(basePrice, currency),
-                                i18n('select_atomizer')
+                                i18n('select_atomizer'),
+                                baseOldPriceText
                             );
                         }
                     }
@@ -775,13 +788,16 @@
             this.$container.find('.wct-submit').prop('disabled', !cartData);
         },
 
-        renderSummaryRow: function (label, priceText, subtext) {
+        renderSummaryRow: function (label, priceText, subtext, oldPriceText) {
             var html = '';
             if (label) {
                 html += '<span class="wct-summary-label">' + esc(label) + '</span>';
             }
             if (priceText) {
                 html += '<span class="wct-summary-price">' + esc(priceText) + '</span>';
+            }
+            if (oldPriceText) {
+                html += '<span class="wct-summary-old-price"><s>' + esc(oldPriceText) + '</s></span>';
             }
             if (subtext) {
                 html += '<span class="wct-summary-subtext">' + esc(subtext) + '</span>';

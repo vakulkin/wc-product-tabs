@@ -61,8 +61,9 @@ class WC_PT_API_Poster_Sync {
 			'permission_callback' => '__return_true',
 		];
 
-		register_rest_route( self::NAMESPACE, '/poster-sync/start',  array_merge( $args, [ 'callback' => [ __CLASS__, 'handle_start'  ] ] ) );
-		register_rest_route( self::NAMESPACE, '/poster-sync/status', array_merge( $args, [ 'callback' => [ __CLASS__, 'handle_status' ] ] ) );
+		register_rest_route( self::NAMESPACE, '/poster-sync/start',          array_merge( $args, [ 'callback' => [ __CLASS__, 'handle_start'   ] ] ) );
+		register_rest_route( self::NAMESPACE, '/poster-sync/status',         array_merge( $args, [ 'callback' => [ __CLASS__, 'handle_status'  ] ] ) );
+		register_rest_route( self::NAMESPACE, '/poster-sync/reindex-prices', array_merge( $args, [ 'callback' => [ __CLASS__, 'handle_reindex' ] ] ) );
 	}
 
 	// -----------------------------------------------------------------------
@@ -190,12 +191,25 @@ class WC_PT_API_Poster_Sync {
 		$batch   = ( get_option( self::OPT_BATCHES, [] ) )[ $batch_done ] ?? [];
 		$updated = 0;
 		$errors  = 0;
+		$modified_pids = [];
 
 		foreach ( $batch as $item ) {
 			try {
-				self::apply_update_item( $item ) ? $updated++ : $errors++;
+				if ( self::apply_update_item( $item ) ) {
+					$updated++;
+					$modified_pids[ (int) $item['product_id'] ] = true;
+				} else {
+					$errors++;
+				}
 			} catch ( Exception $e ) {
 				$errors++;
+			}
+		}
+
+		if ( ! empty( $modified_pids ) ) {
+			$data_service = new WC_PT_Data( new WC_PT_Settings() );
+			foreach ( array_keys( $modified_pids ) as $pid ) {
+				$data_service->sync_product_price_bounds( $pid );
 			}
 		}
 
@@ -211,6 +225,26 @@ class WC_PT_API_Poster_Sync {
 		update_option( self::OPT_JOB, $job, false );
 
 		return new WP_REST_Response( $job, 200 );
+	}
+
+	// -----------------------------------------------------------------------
+	// Route: reindex-prices
+	// -----------------------------------------------------------------------
+
+	public static function handle_reindex( WP_REST_Request $request ) {
+		$page     = (int) $request->get_param( 'page' );
+		$per_page = (int) $request->get_param( 'per_page' );
+		if ( $per_page <= 0 ) {
+			$per_page = 50;
+		}
+
+		$data_service = new WC_PT_Data( new WC_PT_Settings() );
+		$res          = $data_service->sync_all_products_price_bounds( $page, $per_page );
+
+		return new WP_REST_Response(
+			array_merge( [ 'status' => $res['has_more'] ? 'in_progress' : 'completed' ], $res ),
+			200
+		);
 	}
 
 	// -----------------------------------------------------------------------
