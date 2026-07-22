@@ -84,6 +84,8 @@ class WC_PT_Plugin
 		add_action('save_post_product', [$this, 'sync_product_price_bounds_on_save'], 25, 1);
 		add_action('acf/save_post', [$this, 'sync_acf_price_bounds_on_save'], 25, 1);
 		add_action('woocommerce_product_set_stock', [$this, 'sync_stock_price_bounds_on_change'], 10, 1);
+		add_filter('woocommerce_product_add_to_cart_text', [$this, 'change_catalog_add_to_cart_text'], 10, 2);
+		add_filter('woocommerce_product_add_to_cart_url', [$this, 'change_catalog_add_to_cart_url'], 10, 2);
 	}
 
 	/**
@@ -109,7 +111,7 @@ class WC_PT_Plugin
 		wp_enqueue_script(
 			'wc-product-tabs',
 			WC_PT_PLUGIN_URL . 'assets/js/product-tabs.js',
-			['jquery'],
+			[ 'jquery' ],
 			WC_PT_VERSION,
 			true
 		);
@@ -160,7 +162,7 @@ class WC_PT_Plugin
 	}
 
 	/**
-	 * Hide default price html for tabs products.
+	 * Display formatted prices on product listing view, while suppressing top default price on single product view.
 	 *
 	 * @param string     $price Price HTML.
 	 * @param WC_Product $product WooCommerce product.
@@ -168,19 +170,113 @@ class WC_PT_Plugin
 	 */
 	public function maybe_hide_price_html($price, $product)
 	{
-		if ('simple' !== $product->get_type()) {
+		if (! $product instanceof WC_Product || 'simple' !== $product->get_type()) {
 			return $price;
 		}
 
-		if ($this->should_block_simple_fallback($product)) {
+		$product_id = (int) $product->get_id();
+		if (! $this->data->product_has_managed_category($product_id)) {
+			return $price;
+		}
+
+		$tabs_data = $this->data->get_product_tabs_data($product_id);
+		if (empty($tabs_data) || empty($tabs_data['tabs'])) {
+			if ($this->should_block_simple_fallback($product)) {
+				return '';
+			}
+			return $price;
+		}
+
+		// On single product page: hide top default price HTML because JS handles interactive summary price
+		if (is_product() && is_single() && (int) get_queried_object_id() === $product_id) {
 			return '';
 		}
 
-		if ($this->data->get_product_tabs_data($product->get_id())) {
-			return '';
+		// On shop archive / catalog / product listing views: display price range
+		$min_price_raw = get_post_meta($product_id, '_min_price', true);
+		$max_price_raw = get_post_meta($product_id, '_max_price', true);
+
+		$min_price = '' !== $min_price_raw ? (float) $min_price_raw : (float) $product->get_price();
+		$max_price = '' !== $max_price_raw ? (float) $max_price_raw : $min_price;
+
+		if ($min_price <= 0) {
+			return $price;
 		}
 
-		return $price;
+		if (abs($min_price - $max_price) < 0.01) {
+			return wc_price($min_price);
+		}
+
+		return wc_format_price_range($min_price, $max_price);
+	}
+
+	/**
+	 * Change catalog add-to-cart button text for tab products based on available options count.
+	 *
+	 * @param string     $text Button text.
+	 * @param WC_Product $product Product object.
+	 * @return string
+	 */
+	public function change_catalog_add_to_cart_text($text, $product)
+	{
+		if (! $product instanceof WC_Product || 'simple' !== $product->get_type()) {
+			return $text;
+		}
+
+		$product_id = (int) $product->get_id();
+		if (! $this->data->product_has_managed_category($product_id)) {
+			return $text;
+		}
+
+		$tabs_data = $this->data->get_product_tabs_data($product_id);
+		if (empty($tabs_data) || empty($tabs_data['tabs'])) {
+			return $text;
+		}
+
+		$available_count = $this->data->count_available_options($tabs_data);
+
+		if (0 === $available_count) {
+			return __('Немає в наявності', 'wc-product-tabs');
+		}
+
+		if (1 === $available_count) {
+			return __('Додати в кошик', 'wc-product-tabs');
+		}
+
+		return __('Вибрати варіант', 'wc-product-tabs');
+	}
+
+	/**
+	 * Change catalog add-to-cart button URL for tab products with multiple options.
+	 *
+	 * @param string     $url Button URL.
+	 * @param WC_Product $product Product object.
+	 * @return string
+	 */
+	public function change_catalog_add_to_cart_url($url, $product)
+	{
+		if (! $product instanceof WC_Product || 'simple' !== $product->get_type()) {
+			return $url;
+		}
+
+		$product_id = (int) $product->get_id();
+		if (! $this->data->product_has_managed_category($product_id)) {
+			return $url;
+		}
+
+		$tabs_data = $this->data->get_product_tabs_data($product_id);
+		if (empty($tabs_data) || empty($tabs_data['tabs'])) {
+			return $url;
+		}
+
+		$available_count = $this->data->count_available_options($tabs_data);
+
+		// If more than 1 option or out of stock, direct user to single product page to select option
+		if (1 !== $available_count) {
+			return $product->get_permalink();
+		}
+
+		return $url;
 	}
 
 	/**

@@ -497,6 +497,52 @@ class WC_PT_Data {
 	 * @param array<string, mixed> $tabs Tabs keyed by slug.
 	 * @return array<string, mixed>
 	 */
+	/**
+	 * Count total available options across all tabs for a product.
+	 *
+	 * @param array<string, mixed> $tabs_data Product tabs payload.
+	 * @return int Total available options count.
+	 */
+	public function count_available_options( $tabs_data ) {
+		if ( empty( $tabs_data['tabs'] ) || ! is_array( $tabs_data['tabs'] ) ) {
+			return 0;
+		}
+
+		$count = 0;
+
+		foreach ( $tabs_data['tabs'] as $tab_key => $tab ) {
+			if ( in_array( $tab_key, [ 'flakony', 'zalyszky' ], true ) ) {
+				foreach ( (array) ( $tab['variants'] ?? [] ) as $variant ) {
+					if ( ! empty( $variant['available'] ) && (float) ( $variant['price_value'] ?? 0 ) > 0 ) {
+						$count++;
+					}
+				}
+			} elseif ( 'rozpyv' === $tab_key ) {
+				foreach ( (array) ( $tab['sizes'] ?? [] ) as $size ) {
+					$size_key = (string) $size;
+					if ( empty( $tab['size_options'][ $size_key ]['available'] ) ) {
+						continue;
+					}
+
+					foreach ( (array) ( $tab['atomizers'] ?? [] ) as $atomizer ) {
+						$option = $atomizer['options'][ $size_key ] ?? null;
+						if ( ! empty( $option ) && ! empty( $option['available'] ) ) {
+							$count++;
+						}
+					}
+				}
+			}
+		}
+
+		return $count;
+	}
+
+	/**
+	 * Order tabs array according to settings priority.
+	 *
+	 * @param array<string, mixed> $tabs Tabs keyed by slug.
+	 * @return array<string, mixed>
+	 */
 	private function order_tabs_by_priority( $tabs ) {
 		$ordered   = [];
 		$priority  = $this->settings->get_tabs_priority();
