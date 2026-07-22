@@ -65,27 +65,27 @@ class WC_PT_Data {
 
 		$tabs = [];
 
-		// Check Flakony: include if in categories OR if valid flakony variants exist in ACF
+		// Check Flakony: include if valid flakony ACF variants exist (category membership is a bonus check but ACF data is authoritative)
 		$flakony_variants = $this->get_variants_from_acf( 'flakony', $product_id, $product_available );
-		if ( ! empty( $flakony_variants ) && ( in_array( $cat_flakony, $categories, true ) || empty( $categories ) || true ) ) {
+		if ( ! empty( $flakony_variants ) ) {
 			$tabs['flakony'] = [
 				'label'    => 'Флакони',
 				'variants' => $flakony_variants,
 			];
 		}
 
-		// Check Zalyszky: include if in categories OR if valid zalyszky variants exist in ACF
+		// Check Zalyszky: include if valid zalyszky ACF variants exist
 		$zalyszky_variants = $this->get_variants_from_acf( 'zalyszky', $product_id, $product_available );
-		if ( ! empty( $zalyszky_variants ) && ( in_array( $cat_zalyszky, $categories, true ) || empty( $categories ) || true ) ) {
+		if ( ! empty( $zalyszky_variants ) ) {
 			$tabs['zalyszky'] = [
 				'label'    => 'Залишки',
 				'variants' => $zalyszky_variants,
 			];
 		}
 
-		// Check Rozpyv: include if in categories OR if rozpyv_price > 0
+		// Check Rozpyv: include if rozpyv_price ACF field is set and > 0
 		$rozpyv_price_per_ml = $this->to_float( get_field( 'rozpyv_price', $product_id ) );
-		if ( $rozpyv_price_per_ml > 0 && ( in_array( $cat_rozpyv, $categories, true ) || empty( $categories ) || true ) ) {
+		if ( $rozpyv_price_per_ml > 0 ) {
 			$rozpyv_status        = $this->normalize_variant_status( get_field( 'rozpyv_status', $product_id ) );
 			$rozpyv_old_price_raw = sanitize_text_field( (string) get_field( 'rozpyv_old_price', $product_id ) );
 			$rozpyv_old_price_val = $this->to_float( $rozpyv_old_price_raw );

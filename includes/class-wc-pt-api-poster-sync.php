@@ -64,6 +64,35 @@ class WC_PT_API_Poster_Sync {
 		register_rest_route( self::NAMESPACE, '/poster-sync/start',          array_merge( $args, [ 'callback' => [ __CLASS__, 'handle_start'   ] ] ) );
 		register_rest_route( self::NAMESPACE, '/poster-sync/status',         array_merge( $args, [ 'callback' => [ __CLASS__, 'handle_status'  ] ] ) );
 		register_rest_route( self::NAMESPACE, '/poster-sync/reindex-prices', array_merge( $args, [ 'callback' => [ __CLASS__, 'handle_reindex' ] ] ) );
+		register_rest_route( self::NAMESPACE, '/poster-sync/debug-price',    array_merge( $args, [ 'callback' => [ __CLASS__, 'handle_debug_price' ] ] ) );
+	}
+
+	/**
+	 * Debug: inspect tabs data and price bounds for a specific product.
+	 * Usage: GET /wp-json/wc-product-tabs/v1/poster-sync/debug-price?product_id=123
+	 */
+	public static function handle_debug_price( WP_REST_Request $request ) {
+		$product_id = (int) $request->get_param( 'product_id' );
+		if ( $product_id <= 0 ) {
+			return new WP_Error( 'missing_id', 'Provide ?product_id=XXX', [ 'status' => 400 ] );
+		}
+
+		$data    = new WC_PT_Data( new WC_PT_Settings() );
+		$tabs    = $data->get_product_tabs_data( $product_id );
+		$price   = $data->format_product_price_range_html( $product_id );
+		$has_cat = $data->product_has_managed_category( $product_id );
+
+		$raw_min = get_post_meta( $product_id, '_min_price', true );
+		$raw_max = get_post_meta( $product_id, '_max_price', true );
+
+		return new WP_REST_Response( [
+			'product_id'            => $product_id,
+			'has_managed_category'  => $has_cat,
+			'_min_price_meta'       => $raw_min,
+			'_max_price_meta'       => $raw_max,
+			'format_price_html'     => $price,
+			'tabs_data'             => $tabs,
+		], 200 );
 	}
 
 	// -----------------------------------------------------------------------
