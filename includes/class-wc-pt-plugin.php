@@ -86,6 +86,7 @@ class WC_PT_Plugin
 		add_action('woocommerce_product_set_stock', [$this, 'sync_stock_price_bounds_on_change'], 10, 1);
 		add_filter('woocommerce_product_add_to_cart_text', [$this, 'change_catalog_add_to_cart_text'], 10, 2);
 		add_filter('woocommerce_product_add_to_cart_url', [$this, 'change_catalog_add_to_cart_url'], 10, 2);
+		add_filter('woocommerce_loop_add_to_cart_args', [$this, 'filter_catalog_add_to_cart_args'], 10, 2);
 	}
 
 	/**
@@ -228,13 +229,16 @@ class WC_PT_Plugin
 	{
 		$context = $this->get_managed_tab_context($product);
 		if (null === $context) {
+			if ($product instanceof WC_Product && $this->data->product_has_managed_category((int) $product->get_id())) {
+				return __('Повідомити про надходження', 'wc-product-tabs');
+			}
 			return $text;
 		}
 
 		$available_count = $this->data->count_available_options($context['tabs_data']);
 
 		if (0 === $available_count) {
-			return __('Немає в наявності', 'wc-product-tabs');
+			return __('Повідомити про надходження', 'wc-product-tabs');
 		}
 
 		if (1 === $available_count) {
@@ -266,6 +270,40 @@ class WC_PT_Plugin
 		}
 
 		return $url;
+	}
+
+	/**
+	 * Filter catalog loop add-to-cart button arguments and classes.
+	 * Removes ajax_add_to_cart & add_to_cart_button classes when selection is required on single product page.
+	 *
+	 * @param array      $args Loop button arguments.
+	 * @param WC_Product $product WooCommerce product.
+	 * @return array
+	 */
+	public function filter_catalog_add_to_cart_args($args, $product)
+	{
+		$context = $this->get_managed_tab_context($product);
+		if (null === $context) {
+			return $args;
+		}
+
+		$available_count = $this->data->count_available_options($context['tabs_data']);
+
+		// If more than 1 option or 0 options, disable AJAX add to cart so button acts purely as link to product page
+		if (1 !== $available_count) {
+			if (isset($args['class'])) {
+				$classes = explode(' ', (string) $args['class']);
+				$classes = array_diff($classes, ['add_to_cart_button', 'ajax_add_to_cart', 'product_type_simple']);
+				$classes[] = 'product_type_variable';
+				$args['class'] = implode(' ', array_unique(array_filter($classes)));
+			}
+
+			if (isset($args['attributes']['data-product_id'])) {
+				unset($args['attributes']['data-product_id']);
+			}
+		}
+
+		return $args;
 	}
 
 	/**
