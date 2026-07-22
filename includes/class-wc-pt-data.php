@@ -497,27 +497,26 @@ class WC_PT_Data {
 	 * @param array<string, mixed> $tabs Tabs keyed by slug.
 	 * @return array<string, mixed>
 	 */
-	/**
-	 * Format price or price range HTML for a given product based on stored price bounds.
-	 *
-	 * @param int    $product_id Product ID.
-	 * @param string $fallback_html Default price HTML fallback.
-	 * @return string Formatted price HTML.
-	 */
 	public function format_product_price_range_html( $product_id, $fallback_html = '' ) {
-		$product_id    = (int) $product_id;
-		$min_price_raw = get_post_meta( $product_id, '_min_price', true );
-		$max_price_raw = get_post_meta( $product_id, '_max_price', true );
-
-		if ( '' === $min_price_raw ) {
-			$product = wc_get_product( $product_id );
-			if ( $product instanceof WC_Product ) {
-				$min_price_raw = $product->get_price();
-			}
+		$product_id = (int) $product_id;
+		if ( $product_id <= 0 ) {
+			return $fallback_html;
 		}
 
-		$min_price = (float) $min_price_raw;
-		$max_price = '' !== $max_price_raw ? (float) $max_price_raw : $min_price;
+		$tabs_data = $this->get_product_tabs_data( $product_id );
+		if ( empty( $tabs_data ) || empty( $tabs_data['tabs'] ) ) {
+			return $fallback_html;
+		}
+
+		$bounds        = $this->collect_tab_prices_and_stock( $tabs_data['tabs'] );
+		$target_prices = ! empty( $bounds['available_prices'] ) ? $bounds['available_prices'] : $bounds['all_prices'];
+
+		if ( empty( $target_prices ) ) {
+			return $fallback_html;
+		}
+
+		$min_price = min( $target_prices );
+		$max_price = max( $target_prices );
 
 		if ( $min_price <= 0 ) {
 			return $fallback_html;
