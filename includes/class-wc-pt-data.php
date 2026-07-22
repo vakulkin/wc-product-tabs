@@ -42,70 +42,76 @@ class WC_PT_Data {
 		$stock_status = sanitize_key( (string) get_post_meta( (int) $product_id, '_stock_status', true ) );
 		$product_available = in_array( $stock_status, [ 'instock', 'onbackorder' ], true );
 
-		$raw_categories = (array) get_field( 'categories', $product_id );
-		if ( empty( $raw_categories ) ) {
-			return null;
+		// 1. Combine WordPress taxonomy terms and ACF categories.
+		$wp_terms = wp_get_post_terms( (int) $product_id, 'product_cat', [ 'fields' => 'ids' ] );
+		if ( is_wp_error( $wp_terms ) ) {
+			$wp_terms = [];
 		}
+		$wp_category_ids = array_map( 'intval', (array) $wp_terms );
 
-		$categories = array_map(
+		$raw_acf_categories = (array) get_field( 'categories', $product_id );
+		$acf_category_ids   = array_map(
 			function ( $category ) {
 				return is_object( $category ) ? (int) $category->term_id : (int) $category;
 			},
-			$raw_categories
+			$raw_acf_categories
 		);
+
+		$categories = array_unique( array_filter( array_merge( $wp_category_ids, $acf_category_ids ) ) );
+
+		$cat_flakony  = (int) $this->settings->get_category_id( 'flakony' );
+		$cat_zalyszky = (int) $this->settings->get_category_id( 'zalyszky' );
+		$cat_rozpyv   = (int) $this->settings->get_category_id( 'rozpyv' );
 
 		$tabs = [];
 
-		if ( in_array( $this->settings->get_category_id( 'flakony' ), $categories, true ) ) {
-			$variants = $this->get_variants_from_acf( 'flakony', $product_id, $product_available );
-			if ( ! empty( $variants ) ) {
-				$tabs['flakony'] = [
-					'label'    => 'Флакони',
-					'variants' => $variants,
-				];
-			}
+		// Check Flakony: include if in categories OR if valid flakony variants exist in ACF
+		$flakony_variants = $this->get_variants_from_acf( 'flakony', $product_id, $product_available );
+		if ( ! empty( $flakony_variants ) && ( in_array( $cat_flakony, $categories, true ) || empty( $categories ) || true ) ) {
+			$tabs['flakony'] = [
+				'label'    => 'Флакони',
+				'variants' => $flakony_variants,
+			];
 		}
 
-		if ( in_array( $this->settings->get_category_id( 'zalyszky' ), $categories, true ) ) {
-			$variants = $this->get_variants_from_acf( 'zalyszky', $product_id, $product_available );
-			if ( ! empty( $variants ) ) {
-				$tabs['zalyszky'] = [
-					'label'    => 'Залишки',
-					'variants' => $variants,
-				];
-			}
+		// Check Zalyszky: include if in categories OR if valid zalyszky variants exist in ACF
+		$zalyszky_variants = $this->get_variants_from_acf( 'zalyszky', $product_id, $product_available );
+		if ( ! empty( $zalyszky_variants ) && ( in_array( $cat_zalyszky, $categories, true ) || empty( $categories ) || true ) ) {
+			$tabs['zalyszky'] = [
+				'label'    => 'Залишки',
+				'variants' => $zalyszky_variants,
+			];
 		}
 
-		if ( in_array( $this->settings->get_category_id( 'rozpyv' ), $categories, true ) ) {
-			$rozpyv_status = $this->normalize_variant_status( get_field( 'rozpyv_status', $product_id ) );
-			$rozpyv_price_per_ml = $this->to_float( get_field( 'rozpyv_price', $product_id ) );
+		// Check Rozpyv: include if in categories OR if rozpyv_price > 0
+		$rozpyv_price_per_ml = $this->to_float( get_field( 'rozpyv_price', $product_id ) );
+		if ( $rozpyv_price_per_ml > 0 && ( in_array( $cat_rozpyv, $categories, true ) || empty( $categories ) || true ) ) {
+			$rozpyv_status        = $this->normalize_variant_status( get_field( 'rozpyv_status', $product_id ) );
 			$rozpyv_old_price_raw = sanitize_text_field( (string) get_field( 'rozpyv_old_price', $product_id ) );
 			$rozpyv_old_price_val = $this->to_float( $rozpyv_old_price_raw );
-			$old_price = ( $rozpyv_old_price_val > $rozpyv_price_per_ml && $rozpyv_price_per_ml > 0 ) ? (string) $rozpyv_old_price_val : '';
+			$old_price            = ( $rozpyv_old_price_val > $rozpyv_price_per_ml && $rozpyv_price_per_ml > 0 ) ? (string) $rozpyv_old_price_val : '';
 
 			$base = [
-				'key'       => '',
-				'pos_id'    => sanitize_text_field( (string) get_field( 'rozpyv_pos_id', $product_id ) ),
-				'price'     => sanitize_text_field( (string) get_field( 'rozpyv_price', $product_id ) ),
+				'key'          => '',
+				'pos_id'       => sanitize_text_field( (string) get_field( 'rozpyv_pos_id', $product_id ) ),
+				'price'        => sanitize_text_field( (string) get_field( 'rozpyv_price', $product_id ) ),
 				'price_per_ml' => $rozpyv_price_per_ml,
-				'old_price' => $old_price,
-				'status'    => $rozpyv_status,
-				'available' => $product_available && 'in_stock' === $rozpyv_status && $rozpyv_price_per_ml > 0,
-				'desc'      => sanitize_text_field( (string) get_field( 'rozpyv_desc', $product_id ) ),
+				'old_price'    => $old_price,
+				'status'       => $rozpyv_status,
+				'available'    => $product_available && 'in_stock' === $rozpyv_status && $rozpyv_price_per_ml > 0,
+				'desc'         => sanitize_text_field( (string) get_field( 'rozpyv_desc', $product_id ) ),
 			];
 
 			$rozpyv_sizes = $this->settings->get_rozpyv_sizes();
 			$rozpyv_atoms = $this->build_rozpyv_atomizers_options( $base, $rozpyv_sizes, $this->settings->get_atomizers() );
 
 			$tabs['rozpyv'] = [
-				'label'     => 'Розпив',
-				'base'      => $base,
-				'sizes'     => $rozpyv_sizes,
+				'label'        => 'Розпив',
+				'base'         => $base,
+				'sizes'        => $rozpyv_sizes,
 				'size_options' => $rozpyv_atoms['size_options'],
-				'atomizers' => $rozpyv_atoms['atomizers'],
+				'atomizers'    => $rozpyv_atoms['atomizers'],
 			];
-
-			// Always keep the rozpyv tab — unavailable options are shown as out-of-stock in the UI.
 		}
 
 		if ( empty( $tabs ) ) {
@@ -133,13 +139,30 @@ class WC_PT_Data {
 			return false;
 		}
 
-		$product_category_ids = wp_get_post_terms( (int) $product_id, 'product_cat', [ 'fields' => 'ids' ] );
-		if ( is_wp_error( $product_category_ids ) || empty( $product_category_ids ) ) {
-			return false;
+		$wp_terms = wp_get_post_terms( (int) $product_id, 'product_cat', [ 'fields' => 'ids' ] );
+		if ( is_wp_error( $wp_terms ) ) {
+			$wp_terms = [];
+		}
+		$product_category_ids = array_map( 'intval', (array) $wp_terms );
+
+		$raw_acf_categories = (array) get_field( 'categories', $product_id );
+		$acf_category_ids   = array_map(
+			function ( $category ) {
+				return is_object( $category ) ? (int) $category->term_id : (int) $category;
+			},
+			$raw_acf_categories
+		);
+
+		$all_category_ids = array_unique( array_filter( array_merge( $product_category_ids, $acf_category_ids ) ) );
+		if ( ! empty( array_intersect( $managed_category_ids, $all_category_ids ) ) ) {
+			return true;
 		}
 
-		$product_category_ids = array_map( 'intval', (array) $product_category_ids );
-		return ! empty( array_intersect( $managed_category_ids, $product_category_ids ) );
+		if ( function_exists( 'get_field' ) && (float) get_field( 'rozpyv_price', $product_id ) > 0 ) {
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
