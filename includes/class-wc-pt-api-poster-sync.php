@@ -85,43 +85,12 @@ class WC_PT_API_Poster_Sync {
 		$raw_min = get_post_meta( $product_id, '_min_price', true );
 		$raw_max = get_post_meta( $product_id, '_max_price', true );
 
-		// Simulate what loop/price.php does
-		$product    = wc_get_product( $product_id );
-		$live_price = '';
-		$filter_log = [];
-		if ( $product instanceof WC_Product ) {
-			// Intercept what the filter receives and returns
-			add_filter( 'woocommerce_get_price_html', function( $p ) use ( &$filter_log ) {
-				$filter_log[] = [ 'received' => $p ];
-				return $p;
-			}, 5, 1 );
-
-			$live_price = $product->get_price_html();
-
-			// List all filters currently attached to woocommerce_get_price_html
-			global $wp_filter;
-			$price_filters = [];
-			if ( isset( $wp_filter['woocommerce_get_price_html'] ) ) {
-				foreach ( $wp_filter['woocommerce_get_price_html']->callbacks as $priority => $callbacks ) {
-					foreach ( $callbacks as $key => $cb ) {
-						$price_filters[] = [
-							'priority' => $priority,
-							'key'      => $key,
-						];
-					}
-				}
-			}
-		}
-
 		return new WP_REST_Response( [
 			'product_id'            => $product_id,
 			'has_managed_category'  => $has_cat,
 			'_min_price_meta'       => $raw_min,
 			'_max_price_meta'       => $raw_max,
 			'format_price_html'     => $price,
-			'live_get_price_html'   => $live_price,
-			'filter_chain'          => $price_filters ?? [],
-			'filter_log'            => $filter_log,
 			'tabs_data'             => $tabs,
 		], 200 );
 	}
