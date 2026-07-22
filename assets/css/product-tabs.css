@@ -1118,3 +1118,11 @@
     justify-content: center !important;
   }
 }
+
+/* Ensure price ranges (min - max) are displayed even if theme has 'hide_larger_price' enabled */
+.hide-larger-price .price:has(.amount ~ .amount) :is(.amount ~ .amount, [aria-hidden="true"]:not(.amount)),
+body.hide-larger-price .price .amount ~ .amount,
+body.hide-larger-price .price [aria-hidden="true"] {
+  display: inline !important;
+}
+

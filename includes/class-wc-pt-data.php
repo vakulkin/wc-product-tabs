@@ -921,6 +921,10 @@ class WC_PT_Data {
 						}
 
 						$size_key   = (string) $size_ml;
+						if ( empty( $tab['size_options'][ $size_key ]['available'] ) ) {
+							continue;
+						}
+
 						$base_price = $price_per_ml * $size_ml;
 						$all_prices[] = $base_price;
 
