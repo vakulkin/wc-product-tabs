@@ -177,12 +177,19 @@ class WC_PT_Data
 	 * @param int $product_id WooCommerce product ID.
 	 * @return bool True if synced, false otherwise.
 	 */
-	public function sync_product_price_bounds($product_id)
+	public function sync_product_price_bounds($product_id, $force = false)
 	{
+		static $synced = [];
+
 		$product_id = (int) $product_id;
 		if ($product_id <= 0 || ! $this->product_has_managed_category($product_id)) {
 			return false;
 		}
+
+		if (! $force && isset($synced[$product_id])) {
+			return true;
+		}
+		$synced[$product_id] = true;
 
 		$tabs_data = $this->get_product_tabs_data($product_id);
 		if (empty($tabs_data) || empty($tabs_data['tabs'])) {

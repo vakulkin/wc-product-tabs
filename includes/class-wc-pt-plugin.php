@@ -80,7 +80,6 @@ class WC_PT_Plugin
 		add_filter('woocommerce_get_item_data', [$this, 'display_cart_item_data'], 10, 2);
 		add_action('woocommerce_checkout_create_order_line_item', [$this, 'add_order_item_meta'], 10, 4);
 		add_filter('woocommerce_order_item_get_formatted_meta_data', [$this, 'format_order_item_meta'], 10, 2);
-		add_action('woocommerce_process_product_meta', [$this, 'sync_product_price_bounds_on_save'], 25, 1);
 		add_action('save_post_product', [$this, 'sync_product_price_bounds_on_save'], 25, 1);
 		add_action('acf/save_post', [$this, 'sync_acf_price_bounds_on_save'], 25, 1);
 		add_action('woocommerce_product_set_stock', [$this, 'sync_stock_price_bounds_on_change'], 10, 1);
