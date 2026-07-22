@@ -498,6 +498,39 @@ class WC_PT_Data {
 	 * @return array<string, mixed>
 	 */
 	/**
+	 * Format price or price range HTML for a given product based on stored price bounds.
+	 *
+	 * @param int    $product_id Product ID.
+	 * @param string $fallback_html Default price HTML fallback.
+	 * @return string Formatted price HTML.
+	 */
+	public function format_product_price_range_html( $product_id, $fallback_html = '' ) {
+		$product_id    = (int) $product_id;
+		$min_price_raw = get_post_meta( $product_id, '_min_price', true );
+		$max_price_raw = get_post_meta( $product_id, '_max_price', true );
+
+		if ( '' === $min_price_raw ) {
+			$product = wc_get_product( $product_id );
+			if ( $product instanceof WC_Product ) {
+				$min_price_raw = $product->get_price();
+			}
+		}
+
+		$min_price = (float) $min_price_raw;
+		$max_price = '' !== $max_price_raw ? (float) $max_price_raw : $min_price;
+
+		if ( $min_price <= 0 ) {
+			return $fallback_html;
+		}
+
+		if ( abs( $min_price - $max_price ) < 0.01 ) {
+			return wc_price( $min_price );
+		}
+
+		return wc_format_price_range( $min_price, $max_price );
+	}
+
+	/**
 	 * Count total available options across all tabs for a product.
 	 *
 	 * @param array<string, mixed> $tabs_data Product tabs payload.
