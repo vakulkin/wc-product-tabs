@@ -80,9 +80,10 @@ class WC_PT_Plugin
 		add_filter('woocommerce_get_item_data', [$this, 'display_cart_item_data'], 10, 2);
 		add_action('woocommerce_checkout_create_order_line_item', [$this, 'add_order_item_meta'], 10, 4);
 		add_filter('woocommerce_order_item_get_formatted_meta_data', [$this, 'format_order_item_meta'], 10, 2);
-		add_action('save_post_product', [$this, 'sync_product_price_bounds_on_save'], 25, 1);
-		add_action('acf/save_post', [$this, 'sync_acf_price_bounds_on_save'], 25, 1);
-		add_action('woocommerce_product_set_stock', [$this, 'sync_stock_price_bounds_on_change'], 10, 1);
+		add_action('save_post_product', [$this, 'queue_sync_on_save'], 25, 1);
+		add_action('acf/save_post', [$this, 'queue_sync_on_acf_save'], 25, 1);
+		add_action('woocommerce_product_set_stock', [$this, 'queue_sync_on_stock_change'], 10, 1);
+		add_action('shutdown', [$this, 'process_pending_price_bounds_sync']);
 		add_filter('woocommerce_product_add_to_cart_text', [$this, 'change_catalog_add_to_cart_text'], 10, 2);
 		add_filter('woocommerce_product_add_to_cart_url', [$this, 'change_catalog_add_to_cart_url'], 10, 2);
 		add_filter('woocommerce_loop_add_to_cart_args', [$this, 'filter_catalog_add_to_cart_args'], 10, 2);
@@ -840,44 +841,74 @@ class WC_PT_Plugin
 	}
 
 	/**
-	 * Sync price bounds on WooCommerce product admin save.
+	 * Pending product IDs to sync price bounds for at end of request.
+	 *
+	 * @var array<int, bool>
+	 */
+	private static $pending_sync_pids = [];
+
+	/**
+	 * Queue price bounds sync on product save.
 	 *
 	 * @param int $product_id Product ID.
 	 * @return void
 	 */
-	public function sync_product_price_bounds_on_save($product_id)
+	public function queue_sync_on_save($product_id)
 	{
 		$product_id = (int) $product_id;
 		if ($product_id <= 0 || wp_is_post_revision($product_id) || wp_is_post_autosave($product_id)) {
 			return;
 		}
 
-		$this->data->sync_product_price_bounds($product_id);
+		self::$pending_sync_pids[$product_id] = true;
 	}
 
 	/**
-	 * Sync price bounds on ACF post save.
+	 * Queue price bounds sync on ACF post save.
 	 *
 	 * @param int|string $post_id Post ID.
 	 * @return void
 	 */
-	public function sync_acf_price_bounds_on_save($post_id)
+	public function queue_sync_on_acf_save($post_id)
 	{
-		if ('product' === get_post_type($post_id)) {
-			$this->data->sync_product_price_bounds((int) $post_id);
+		$product_id = (int) $post_id;
+		if ($product_id > 0 && 'product' === get_post_type($product_id)) {
+			self::$pending_sync_pids[$product_id] = true;
 		}
 	}
 
 	/**
-	 * Sync price bounds on WooCommerce stock status change.
+	 * Queue price bounds sync on WooCommerce stock status change.
 	 *
 	 * @param WC_Product $product WooCommerce product object.
 	 * @return void
 	 */
-	public function sync_stock_price_bounds_on_change($product)
+	public function queue_sync_on_stock_change($product)
 	{
 		if (is_object($product) && method_exists($product, 'get_id')) {
-			$this->data->sync_product_price_bounds((int) $product->get_id());
+			$product_id = (int) $product->get_id();
+			if ($product_id > 0) {
+				self::$pending_sync_pids[$product_id] = true;
+			}
+		}
+	}
+
+	/**
+	 * Process queued price bounds syncs ONCE per product at end of request.
+	 *
+	 * @return void
+	 */
+	public function process_pending_price_bounds_sync()
+	{
+		if (empty(self::$pending_sync_pids)) {
+			return;
+		}
+
+		$pids                     = array_keys(self::$pending_sync_pids);
+		self::$pending_sync_pids = [];
+
+		foreach ($pids as $pid) {
+			$this->data->sync_product_price_bounds((int) $pid, true);
 		}
 	}
 }

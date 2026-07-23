@@ -238,7 +238,7 @@ class WC_PT_API_Poster_Sync {
 		if ( ! empty( $modified_pids ) ) {
 			$data_service = new WC_PT_Data( new WC_PT_Settings() );
 			foreach ( array_keys( $modified_pids ) as $pid ) {
-				$data_service->sync_product_price_bounds( $pid );
+				$data_service->sync_product_price_bounds( $pid, true );
 			}
 		}
 
