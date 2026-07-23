@@ -32,16 +32,20 @@
 
         /* ---- Init ---- */
         init: function () {
-            if (!window.wcProductTabs || !window.wcProductTabs.product_tabs) return;
+            if (!window.wcProductTabs) return;
 
             this.$container = $('#wc-product-tabs');
-            if (!this.$container.length) return;
+            if (this.$container.length && window.wcProductTabs.product_tabs) {
+                this.data = window.wcProductTabs.product_tabs;
+                this.tabsPriority = this.getTabsPriority();
+                this.render();
+                this.bindEvents();
+                this.autoSelect();
+            }
 
-            this.data = window.wcProductTabs.product_tabs;
-            this.tabsPriority = this.getTabsPriority();
-            this.render();
-            this.bindEvents();
-            this.autoSelect();
+            this.bindGlobalEvents();
+            this.initStandaloneNotify();
+            this.initVariableNotify();
         },
 
         getTabsPriority: function () {
@@ -248,11 +252,18 @@
             return html;
         },
 
-        renderNotifyForm: function (isInline, customDesc) {
+        renderNotifyForm: function (isInline, customDesc, dataAttrs) {
             var html = '';
             var cls = isInline ? 'wct-notify-panel wct-notify-inline' : 'wct-notify-panel wct-notify-floating';
+            var attrsStr = '';
 
-            html += '<div class="' + cls + '">';
+            if (dataAttrs && typeof dataAttrs === 'object') {
+                Object.keys(dataAttrs).forEach(function (k) {
+                    attrsStr += ' ' + esc(k) + '="' + esc(dataAttrs[k]) + '"';
+                });
+            }
+
+            html += '<div class="' + cls + '"' + attrsStr + '>';
             html += '<div class="wct-notify-inner">';
             html += '<div class="wct-notify-header">';
             html += '<span class="wct-notify-title">' + esc(i18n('notify_title')) + '</span>';
@@ -915,8 +926,12 @@
         submitNotify: function ($np) {
             var self = this;
             if (!$np || !$np.length) {
-                $np = this.$container.find('.wct-notify-panel.wct-notify-floating');
+                $np = (this.$container && this.$container.length)
+                    ? this.$container.find('.wct-notify-panel.wct-notify-floating')
+                    : $('.wct-notify-panel').first();
             }
+            if (!$np || !$np.length) return;
+
             var phone = $np.find('.wct-notify-phone').val().trim();
             var phoneRegex = /^\+?[0-9]{7,15}$/;
 
@@ -929,7 +944,6 @@
                 return;
             }
 
-            var target = this.notifyTarget || {};
             var notifyUrl = window.wcProductTabs.notify_url || '';
 
             if (!notifyUrl) {
@@ -941,10 +955,14 @@
                 return;
             }
 
-            // Build GET query string.
-            var activeTab = target.tab || this.state.tab || '';
+            // Extract values directly from $np data attributes or target / state / product_info
+            var target = this.notifyTarget || {};
             var activeVariant = this.state.variant || {};
-            var activeKey = target.key || activeVariant.key || '';
+            var fallbackProductId = (window.wcProductTabs && window.wcProductTabs.product_info) ? window.wcProductTabs.product_info.id : 0;
+
+            var productId = $np.attr('data-product-id') || target.product_id || (this.data ? this.data.product_id : 0) || fallbackProductId;
+            var activeTab = $np.attr('data-tab') || target.tab || this.state.tab || '';
+            var activeKey = $np.attr('data-key') || target.key || activeVariant.key || '';
 
             if (activeTab === 'rozpyv' && !activeKey) {
                 var rozpyvBase = (this.data && this.data.tabs && this.data.tabs.rozpyv && this.data.tabs.rozpyv.base) || {};
@@ -953,9 +971,9 @@
 
             var params = new URLSearchParams({
                 phone: phone,
-                product_id: String(target.product_id || (this.data ? this.data.product_id : 0) || 0),
-                tab: activeTab,
-                key: activeKey,
+                product_id: String(productId || 0),
+                tab: String(activeTab || ''),
+                key: String(activeKey || ''),
             });
             var sep = notifyUrl.indexOf('?') === -1 ? '?' : '&';
             var fullUrl = notifyUrl + sep + params.toString();
@@ -969,7 +987,7 @@
                     var $msg = $np.find('.wct-notify-message');
                     if (json && json.success) {
                         savePhone(phone);
-                        self.$container.find('.wct-notify-phone').val(phone);
+                        $('.wct-notify-phone').val(phone);
 
                         $msg.removeClass('wct-notify-error')
                             .addClass('wct-notify-success')
@@ -992,6 +1010,183 @@
                         .show();
                     $btn.prop('disabled', false).text(i18n('notify_submit'));
                 });
+        },
+
+        bindGlobalEvents: function () {
+            var self = this;
+
+            $(document).off('click.wctNotify').on('click.wctNotify', '.wct-notify-submit', function () {
+                self.submitNotify($(this).closest('.wct-notify-panel'));
+            });
+
+            $(document).off('keydown.wctNotify').on('keydown.wctNotify', '.wct-notify-phone', function (e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    self.submitNotify($(this).closest('.wct-notify-panel'));
+                }
+            });
+
+            $(document).off('input.wctNotify').on('input.wctNotify', '.wct-notify-phone', function () {
+                var val = $(this).val();
+                var cleaned = val.replace(/[^\d+]/g, '');
+                if (cleaned.indexOf('+') > 0) {
+                    cleaned = cleaned.replace(/\+/g, function (match, offset) {
+                        return offset === 0 ? '+' : '';
+                    });
+                }
+                if (val !== cleaned) {
+                    $(this).val(cleaned);
+                }
+            });
+
+            $(document).off('click.wctNotifyClose').on('click.wctNotifyClose', '.wct-notify-close', function () {
+                var $panel = $(this).closest('.wct-notify-panel');
+                if ($panel.hasClass('wct-notify-floating')) {
+                    self.closeNotifyPanel();
+                } else if ($panel.hasClass('wct-variation-notify-panel')) {
+                    $panel.hide();
+                }
+            });
+        },
+
+        initStandaloneNotify: function () {
+            var self = this;
+            var $standalone = $('#wct-standalone-notify, .wct-standalone-notify');
+            if ($standalone.length) {
+                $standalone.each(function () {
+                    var $el = $(this);
+                    if ($el.children().length > 0) return;
+
+                    var productId = $el.attr('data-product-id') || (window.wcProductTabs.product_info ? window.wcProductTabs.product_info.id : 0);
+                    var tabType = $el.attr('data-tab') || 'simple';
+                    var keyStr = $el.attr('data-key') || '';
+
+                    var descHtml = esc(i18n('notify_desc_global'));
+                    var dataAttrs = {
+                        'data-product-id': String(productId),
+                        'data-tab': String(tabType),
+                        'data-key': String(keyStr),
+                    };
+
+                    var html = self.renderNotifyForm(true, descHtml, dataAttrs);
+                    $el.html(html);
+
+                    var savedPhone = getSavedPhone();
+                    if (savedPhone) {
+                        $el.find('.wct-notify-phone').val(savedPhone);
+                    }
+                });
+                return;
+            }
+
+            // Fallback for simple/out-of-stock products where PHP container might not be in template
+            if (window.wcProductTabs && window.wcProductTabs.product_info) {
+                var info = window.wcProductTabs.product_info;
+                if ((!info.is_in_stock || info.blocked_fallback) && !info.has_tabs && info.type !== 'variable') {
+                    var $target = $('.stock.out-of-stock, .single-product .summary .cart, .single-product .summary');
+                    if ($target.length && !$('.wct-notify-panel').length) {
+                        var $wrapper = $('<div id="wct-standalone-notify" class="wct-standalone-notify" data-product-id="' + info.id + '" data-tab="simple" data-key=""></div>');
+                        $target.first().after($wrapper);
+                        var descHtml = esc(i18n('notify_desc_global'));
+                        var dataAttrs = {
+                            'data-product-id': String(info.id),
+                            'data-tab': 'simple',
+                            'data-key': '',
+                        };
+                        $wrapper.html(self.renderNotifyForm(true, descHtml, dataAttrs));
+                        var savedPhone = getSavedPhone();
+                        if (savedPhone) {
+                            $wrapper.find('.wct-notify-phone').val(savedPhone);
+                        }
+                    }
+                }
+            }
+        },
+
+        initVariableNotify: function () {
+            var self = this;
+            var $vForm = $('form.variations_form');
+            if (!$vForm.length) return;
+
+            $vForm.off('found_variation.wct show_variation.wct').on('found_variation.wct show_variation.wct', function (e, variation) {
+                self.updateVariableNotify($(this), variation);
+            });
+
+            $vForm.off('reset_data.wct hide_variation.wct').on('reset_data.wct hide_variation.wct', function () {
+                self.updateVariableNotify($(this), null);
+            });
+
+            $vForm.off('change.wctVarSelect').on('change.wctVarSelect', '.variations select, .wd-swatch', function () {
+                setTimeout(function () {
+                    var $stockEl = $vForm.find('.woocommerce-variation-availability .out-of-stock, .single_variation .out-of-stock');
+                    if ($stockEl.length) {
+                        var varId = $vForm.find('input[name="variation_id"]').val() || 0;
+                        self.updateVariableNotify($vForm, {
+                            variation_id: varId,
+                            is_in_stock: false,
+                            availability_html: $stockEl.text(),
+                        });
+                    }
+                }, 100);
+            });
+        },
+
+        updateVariableNotify: function ($form, variation) {
+            $form.find('.wct-notify-panel.wct-variation-notify-panel').remove();
+
+            if (!variation) return;
+
+            var isOOS = false;
+            if (variation.is_in_stock === false || variation.is_purchasable === false) {
+                isOOS = true;
+            } else if (variation.availability_html && (variation.availability_html.indexOf('out-of-stock') !== -1 || variation.availability_html.indexOf('outofstock') !== -1)) {
+                isOOS = true;
+            }
+
+            if (!isOOS) return;
+
+            // Build variation label text
+            var labelParts = [];
+            if (variation.attributes && typeof variation.attributes === 'object') {
+                Object.keys(variation.attributes).forEach(function (attrKey) {
+                    var val = variation.attributes[attrKey];
+                    if (val) {
+                        var cleanVal = String(val).replace(/^attribute_/, '').replace(/[-_]/g, ' ');
+                        labelParts.push(cleanVal);
+                    }
+                });
+            }
+
+            var labelText = labelParts.length ? labelParts.join(', ') : ('#' + (variation.variation_id || ''));
+            var parentId = (window.wcProductTabs && window.wcProductTabs.product_info) ? window.wcProductTabs.product_info.id : 0;
+            if (!parentId) {
+                parentId = $form.data('product_id') || $form.find('input[name="product_id"]').val() || 0;
+            }
+
+            var customDesc = esc(i18n('notify_desc')) + ' <strong class="wct-notify-label-text">' + esc(labelText) + '</strong>.';
+
+            var dataAttrs = {
+                'data-product-id': String(parentId),
+                'data-tab': 'variable',
+                'data-key': String(variation.variation_id || labelText),
+            };
+
+            var html = this.renderNotifyForm(true, customDesc, dataAttrs);
+            var $panel = $(html).addClass('wct-variation-notify-panel');
+
+            var $target = $form.find('.single_variation_wrap .single_variation, .single_variation_wrap, .woocommerce-variation-availability');
+            if ($target.length) {
+                $target.first().after($panel);
+            } else {
+                $form.append($panel);
+            }
+
+            $panel.show();
+
+            var savedPhone = getSavedPhone();
+            if (savedPhone) {
+                $panel.find('.wct-notify-phone').val(savedPhone);
+            }
         },
     };
 

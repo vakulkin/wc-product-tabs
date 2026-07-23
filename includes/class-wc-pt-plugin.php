@@ -151,9 +151,21 @@ class WC_PT_Plugin
 			}
 
 			if ($product_id > 0) {
-				$tabs_data = $this->data->get_product_tabs_data($product_id);
-				if (! empty($tabs_data)) {
-					$payload['product_tabs'] = $tabs_data;
+				$product = wc_get_product($product_id);
+				if ($product instanceof WC_Product) {
+					$tabs_data = $this->data->get_product_tabs_data($product_id);
+					if (! empty($tabs_data)) {
+						$payload['product_tabs'] = $tabs_data;
+					}
+
+					$payload['product_info'] = [
+						'id'               => $product_id,
+						'type'             => $product->get_type(),
+						'is_in_stock'      => $product->is_in_stock(),
+						'title'            => $product->get_name(),
+						'has_tabs'         => ! empty($tabs_data),
+						'blocked_fallback' => ('simple' === $product->get_type() && $this->should_block_simple_fallback($product)),
+					];
 				}
 			}
 		}
@@ -306,24 +318,32 @@ class WC_PT_Plugin
 	}
 
 	/**
-	 * Start output buffering to suppress default add-to-cart form.
+	 * Start output buffering to suppress default add-to-cart form for custom tabs or out-of-stock products.
 	 *
 	 * @return void
 	 */
 	public function maybe_start_hide_cart_form()
 	{
 		global $product;
-		if (! $product instanceof WC_Product || 'simple' !== $product->get_type()) {
+		if (! $product instanceof WC_Product) {
 			return;
 		}
 
-		if ($this->should_block_simple_fallback($product)) {
-			ob_start();
-			return;
-		}
+		$product_type = $product->get_type();
 
-		if ($this->data->get_product_tabs_data($product->get_id())) {
-			ob_start();
+		if ('simple' === $product_type) {
+			if ($this->should_block_simple_fallback($product) || ! $product->is_in_stock()) {
+				ob_start();
+				return;
+			}
+
+			if ($this->data->get_product_tabs_data($product->get_id())) {
+				ob_start();
+			}
+		} elseif ('variable' === $product_type) {
+			if (! $product->is_in_stock()) {
+				ob_start();
+			}
 		}
 	}
 
@@ -335,22 +355,36 @@ class WC_PT_Plugin
 	public function maybe_end_hide_cart_form()
 	{
 		global $product;
-		if (! $product instanceof WC_Product || 'simple' !== $product->get_type()) {
+		if (! $product instanceof WC_Product) {
 			return;
 		}
 
-		if ($this->should_block_simple_fallback($product)) {
-			ob_end_clean();
-			return;
-		}
+		$product_type = $product->get_type();
 
-		if ($this->data->get_product_tabs_data($product->get_id())) {
-			ob_end_clean();
+		if ('simple' === $product_type) {
+			if ($this->should_block_simple_fallback($product) || ! $product->is_in_stock()) {
+				if (ob_get_level() > 0) {
+					ob_end_clean();
+				}
+				return;
+			}
+
+			if ($this->data->get_product_tabs_data($product->get_id())) {
+				if (ob_get_level() > 0) {
+					ob_end_clean();
+				}
+			}
+		} elseif ('variable' === $product_type) {
+			if (! $product->is_in_stock()) {
+				if (ob_get_level() > 0) {
+					ob_end_clean();
+				}
+			}
 		}
 	}
 
 	/**
-	 * Render the custom tabs container.
+	 * Render the custom tabs container or standalone out-of-stock notify form wrapper.
 	 *
 	 * @return void
 	 */
@@ -365,20 +399,41 @@ class WC_PT_Plugin
 			$product = wc_get_product(get_the_ID());
 		}
 
-		if (! $product instanceof WC_Product || 'simple' !== $product->get_type()) {
+		if (! $product instanceof WC_Product) {
 			return;
 		}
 
-		if ($this->should_block_simple_fallback($product)) {
-			echo '<p class="stock out-of-stock">' . esc_html__('Немає в наявності', 'wc-product-tabs') . '</p>';
-			return;
+		$product_id   = (int) $product->get_id();
+		$product_type = $product->get_type();
+
+		// 1. Simple product with tabs
+		if ('simple' === $product_type) {
+			$tabs_data = $this->data->get_product_tabs_data($product_id);
+			if (! empty($tabs_data) && ! empty($tabs_data['tabs'])) {
+				echo '<div id="wc-product-tabs" data-product-id="' . esc_attr($product_id) . '"></div>';
+				return;
+			}
+
+			// 2. Simple product with blocked fallback (managed cat without valid tab options)
+			if ($this->should_block_simple_fallback($product)) {
+				echo '<div id="wct-standalone-notify" class="wct-standalone-notify" data-product-id="' . esc_attr($product_id) . '" data-tab="simple" data-key=""></div>';
+				return;
+			}
+
+			// 3. Regular simple product that is out of stock
+			if (! $product->is_in_stock()) {
+				echo '<div id="wct-standalone-notify" class="wct-standalone-notify" data-product-id="' . esc_attr($product_id) . '" data-tab="simple" data-key=""></div>';
+				return;
+			}
 		}
 
-		if (! $this->data->get_product_tabs_data($product->get_id())) {
-			return;
+		// 4. Variable product that is globally out of stock
+		if ('variable' === $product_type) {
+			if (! $product->is_in_stock()) {
+				echo '<div id="wct-standalone-notify" class="wct-standalone-notify" data-product-id="' . esc_attr($product_id) . '" data-tab="variable" data-key=""></div>';
+				return;
+			}
 		}
-
-		echo '<div id="wc-product-tabs" data-product-id="' . esc_attr($product->get_id()) . '"></div>';
 	}
 
 	/**
