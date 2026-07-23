@@ -196,19 +196,17 @@ class WC_PT_Data
 			return false;
 		}
 
-		$bounds                 = $this->collect_tab_prices_and_stock($tabs_data['tabs']);
-		$target_prices          = ! empty($bounds['available_prices']) ? $bounds['available_prices'] : $bounds['all_prices'];
-		$target_regular_prices  = ! empty($bounds['available_regular_prices']) ? $bounds['available_regular_prices'] : $bounds['all_regular_prices'];
+		$bounds        = $this->collect_tab_prices_and_stock($tabs_data['tabs']);
+		$target_prices = ! empty($bounds['available_prices']) ? $bounds['available_prices'] : $bounds['all_prices'];
 
 		if (empty($target_prices)) {
 			return false;
 		}
 
-		$min_price         = min($target_prices);
-		$max_price         = max($target_prices);
-		$max_regular_price = ! empty($target_regular_prices) ? max($target_regular_prices) : $max_price;
-		$stock_status      = $bounds['has_in_stock'] ? 'instock' : 'outofstock';
-		$has_sale          = $bounds['has_sale'];
+		$min_price    = min($target_prices);
+		$max_price    = max($target_prices);
+		$stock_status = $bounds['has_in_stock'] ? 'instock' : 'outofstock';
+		$has_sale     = $bounds['has_sale'];
 
 		// 1. Update postmeta
 		update_post_meta($product_id, '_min_price', (string) $min_price);
@@ -216,9 +214,12 @@ class WC_PT_Data
 		update_post_meta($product_id, '_price',     (string) $min_price);
 		update_post_meta($product_id, '_stock_status', $stock_status);
 
-		if ($has_sale && $max_regular_price > $min_price) {
-			update_post_meta($product_id, '_regular_price', (string) $max_regular_price);
-			update_post_meta($product_id, '_sale_price', (string) $min_price);
+		if ($has_sale && ! empty($bounds['best_sale'])) {
+			$sale_price    = $bounds['best_sale']['sale_price'];
+			$regular_price = $bounds['best_sale']['regular_price'];
+
+			update_post_meta($product_id, '_sale_price', (string) $sale_price);
+			update_post_meta($product_id, '_regular_price', (string) $regular_price);
 		} else {
 			update_post_meta($product_id, '_sale_price', '');
 			update_post_meta($product_id, '_regular_price', (string) $min_price);
@@ -870,16 +871,14 @@ class WC_PT_Data
 	 * Collect all price boundaries and stock flags across all tabs.
 	 *
 	 * @param array<string, mixed> $tabs Tabs data.
-	 * @return array{all_prices: float[], available_prices: float[], all_regular_prices: float[], available_regular_prices: float[], has_sale: bool, has_in_stock: bool}
+	 * @return array{all_prices: float[], available_prices: float[], has_sale: bool, has_in_stock: bool, best_sale: array{sale_price: float, regular_price: float, pct: float, amount: float}|null}
 	 */
 	private function collect_tab_prices_and_stock(array $tabs)
 	{
-		$all_prices               = [];
-		$available_prices         = [];
-		$all_regular_prices       = [];
-		$available_regular_prices = [];
-		$has_sale                 = false;
-		$has_in_stock             = false;
+		$all_prices       = [];
+		$available_prices = [];
+		$sale_options     = [];
+		$has_in_stock     = false;
 
 		foreach ($tabs as $tab_key => $tab) {
 			if (in_array($tab_key, ['flakony', 'zalyszky'], true)) {
@@ -889,19 +888,22 @@ class WC_PT_Data
 						continue;
 					}
 
-					$old_price_val = $this->to_float($variant['old_price'] ?? 0);
-					$regular_val   = ($old_price_val > $price_val) ? $old_price_val : $price_val;
-
-					$all_prices[]         = $price_val;
-					$all_regular_prices[] = $regular_val;
+					$all_prices[] = $price_val;
 
 					if (! empty($variant['available'])) {
-						$available_prices[]         = $price_val;
-						$available_regular_prices[] = $regular_val;
-						$has_in_stock               = true;
+						$available_prices[] = $price_val;
+						$has_in_stock       = true;
 
+						$old_price_val = $this->to_float($variant['old_price'] ?? 0);
 						if ($old_price_val > $price_val) {
-							$has_sale = true;
+							$amount         = $old_price_val - $price_val;
+							$pct            = $amount / $old_price_val;
+							$sale_options[] = [
+								'sale_price'    => $price_val,
+								'regular_price' => $old_price_val,
+								'pct'           => $pct,
+								'amount'        => $amount,
+							];
 						}
 					}
 				}
@@ -910,19 +912,15 @@ class WC_PT_Data
 				$price_per_ml     = (float) ($base['price_per_ml'] ?? 0);
 				$old_price_per_ml = $this->to_float($base['old_price'] ?? 0);
 				$rozpyv_available = ! empty($base['available']);
+				$has_rozpyv_sale  = ($old_price_per_ml > $price_per_ml && $price_per_ml > 0);
 
 				if ($price_per_ml > 0) {
 					if ($rozpyv_available) {
 						$has_in_stock = true;
 					}
 
-					if ($old_price_per_ml > $price_per_ml) {
-						$has_sale = true;
-					}
-
-					$reg_price_per_ml = ($old_price_per_ml > $price_per_ml) ? $old_price_per_ml : $price_per_ml;
-					$sizes            = (array) ($tab['sizes'] ?? []);
-					$atomizers        = (array) ($tab['atomizers'] ?? []);
+					$sizes     = (array) ($tab['sizes'] ?? []);
+					$atomizers = (array) ($tab['atomizers'] ?? []);
 
 					foreach ($sizes as $size) {
 						$size_ml = (int) $size;
@@ -936,10 +934,9 @@ class WC_PT_Data
 						}
 
 						$base_price     = $price_per_ml * $size_ml;
-						$base_reg_price = $reg_price_per_ml * $size_ml;
+						$base_old_price = $has_rozpyv_sale ? ($old_price_per_ml * $size_ml) : 0;
 
-						$all_prices[]         = $base_price;
-						$all_regular_prices[] = $base_reg_price;
+						$all_prices[] = $base_price;
 
 						if (! empty($atomizers)) {
 							foreach ($atomizers as $atomizer) {
@@ -947,22 +944,41 @@ class WC_PT_Data
 								if (! empty($option)) {
 									$atomizer_price = (float) ($option['atomizer_price'] ?? 0);
 									$total_price    = $base_price + $atomizer_price;
-									$total_reg      = $base_reg_price + $atomizer_price;
 
-									$all_prices[]         = $total_price;
-									$all_regular_prices[] = $total_reg;
+									$all_prices[] = $total_price;
 
 									if (! empty($option['available'])) {
-										$available_prices[]         = $total_price;
-										$available_regular_prices[] = $total_reg;
-										$has_in_stock               = true;
+										$available_prices[] = $total_price;
+										$has_in_stock       = true;
+
+										if ($has_rozpyv_sale) {
+											$total_old_price = $base_old_price + $atomizer_price;
+											$amount          = $total_old_price - $total_price;
+											$pct             = $amount / $total_old_price;
+											$sale_options[]  = [
+												'sale_price'    => $total_price,
+												'regular_price' => $total_old_price,
+												'pct'           => $pct,
+												'amount'        => $amount,
+											];
+										}
 									}
 								}
 							}
 						} else {
 							if ($rozpyv_available) {
-								$available_prices[]         = $base_price;
-								$available_regular_prices[] = $base_reg_price;
+								$available_prices[] = $base_price;
+
+								if ($has_rozpyv_sale) {
+									$amount         = $base_old_price - $base_price;
+									$pct            = $amount / $base_old_price;
+									$sale_options[] = [
+										'sale_price'    => $base_price,
+										'regular_price' => $base_old_price,
+										'pct'           => $pct,
+										'amount'        => $amount,
+									];
+								}
 							}
 						}
 					}
@@ -970,13 +986,29 @@ class WC_PT_Data
 			}
 		}
 
+		$best_sale = null;
+		$has_sale  = ! empty($sale_options);
+
+		if ($has_sale) {
+			usort($sale_options, static function ($a, $b) {
+				if (abs($a['pct'] - $b['pct']) > 0.0001) {
+					return $b['pct'] <=> $a['pct'];
+				}
+				if (abs($a['amount'] - $b['amount']) > 0.01) {
+					return $b['amount'] <=> $a['amount'];
+				}
+				return $a['sale_price'] <=> $b['sale_price'];
+			});
+
+			$best_sale = $sale_options[0];
+		}
+
 		return [
-			'all_prices'               => $all_prices,
-			'available_prices'         => $available_prices,
-			'all_regular_prices'       => $all_regular_prices,
-			'available_regular_prices' => $available_regular_prices,
-			'has_sale'                 => $has_sale,
-			'has_in_stock'             => $has_in_stock,
+			'all_prices'       => $all_prices,
+			'available_prices' => $available_prices,
+			'has_sale'         => $has_sale,
+			'has_in_stock'     => $has_in_stock,
+			'best_sale'        => $best_sale,
 		];
 	}
 }
