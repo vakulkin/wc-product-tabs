@@ -221,12 +221,26 @@ class WC_PT_Plugin
 
 		$product_id = $context['product_id'];
 
-		// On single product page: hide top default price HTML because JS handles interactive summary price
-		if (is_product() && is_single() && (int) get_queried_object_id() === $product_id) {
+		global $post, $woocommerce_loop;
+
+		// Check if this is the main product display on a single product page
+		$is_main_product = is_product() 
+			&& is_singular('product') 
+			&& isset($post) 
+			&& $product_id === $post->ID;
+
+		$is_in_named_loop = isset($woocommerce_loop['name']) && !empty($woocommerce_loop['name']);
+		$is_shortcode     = isset($woocommerce_loop['is_shortcode']) && $woocommerce_loop['is_shortcode'];
+		
+		// We are in a loop if it has a name, is a shortcode, or we are NOT rendering the main product
+		$is_in_loop = $is_in_named_loop || $is_shortcode || !$is_main_product;
+
+		if (! $is_in_loop) {
+			// On main single product view: hide top default price HTML because JS handles interactive summary price
 			return '';
 		}
 
-		// On shop archive / catalog / product listing views: display price range via data service
+		// On shop archive / catalog / shortcodes / product listing views: display price range via data service
 		return $this->data->format_product_price_range_html($product_id, $price);
 	}
 
