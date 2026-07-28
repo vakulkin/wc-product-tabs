@@ -534,36 +534,47 @@ class WC_PT_Data
 	{
 		$product_id = (int) $product_id;
 		if ($product_id <= 0) {
-			return $fallback_html . ' test 1	';
+			return $fallback_html;
 		}
 
 		$tabs_data = $this->get_product_tabs_data($product_id);
 		if (empty($tabs_data) || empty($tabs_data['tabs'])) {
-			return $fallback_html . ' test 2';
+			return $fallback_html;
 		}
 
 		$bounds        = $this->collect_tab_prices_and_stock($tabs_data['tabs']);
 		$target_prices = ! empty($bounds['available_prices']) ? $bounds['available_prices'] : $bounds['all_prices'];
 
 		if (empty($target_prices)) {
-			return $fallback_html . ' test 3';
+			return $fallback_html;
 		}
 
 		$min_price = min($target_prices);
 		$max_price = max($target_prices);
 
 		if ($min_price <= 0) {
-			return $fallback_html . ' test 4';
+			return $fallback_html;
 		}
 
 		if (abs($min_price - $max_price) < 0.01) {
-			return wc_price($min_price) . ' test 5';
+			return wc_price($min_price);
 		}
 
-		$formatted_min = wc_price($min_price, array('aria-hidden' => true));
-		$formatted_max = wc_price($max_price, array('aria-hidden' => true));
+		$formatted_min = wc_price($min_price);
+		$formatted_max = wc_price($max_price);
 
-		return sprintf('%1$s <span aria-hidden="true">&ndash;</span> %2$s', $formatted_min, $formatted_max) . ' test 6';
+		// Prevent theme CSS from hiding the second price or dash in compact layouts (e.g., buttons-on-hover)
+		$formatted_max = str_replace(
+			'class="woocommerce-Price-amount amount"',
+			'class="woocommerce-Price-amount amount" style="display:inline-block !important;"',
+			$formatted_max
+		);
+
+		return sprintf(
+			'%1$s <span aria-hidden="true" style="display:inline-block !important; margin: 0 4px;">&ndash;</span> %2$s',
+			$formatted_min,
+			$formatted_max
+		);
 	}
 
 	/**
