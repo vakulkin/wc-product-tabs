@@ -549,33 +549,33 @@ class WC_PT_Data
 	{
 		$product_id = (int) $product_id;
 		if ($product_id <= 0) {
-			return $fallback_html;
+			return $fallback_html . '<span style="color:red;font-size:10px;">[DEBUG: invalid product id]</span>';
 		}
 
 		$tabs_data = $this->get_product_tabs_data($product_id);
 		if (empty($tabs_data) || empty($tabs_data['tabs'])) {
-			return $fallback_html;
+			return $fallback_html . '<span style="color:red;font-size:10px;">[DEBUG: empty tabs data]</span>';
 		}
 
 		$bounds        = $this->collect_tab_prices_and_stock($tabs_data['tabs']);
 		$target_prices = ! empty($bounds['available_prices']) ? $bounds['available_prices'] : $bounds['all_prices'];
 
 		if (empty($target_prices)) {
-			return $fallback_html;
+			return $fallback_html . '<span style="color:red;font-size:10px;">[DEBUG: empty target prices]</span>';
 		}
 
 		$min_price = min($target_prices);
 		$max_price = max($target_prices);
 
 		if ($min_price <= 0) {
-			return $fallback_html;
+			return $fallback_html . '<span style="color:red;font-size:10px;">[DEBUG: min price <= 0]</span>';
 		}
 
 		if (abs($min_price - $max_price) < 0.01) {
-			return wc_price($min_price);
+			return wc_price($min_price) . '<span style="color:red;font-size:10px;">[DEBUG: min == max (single price)]</span>';
 		}
 
-		return wc_format_price_range($min_price, $max_price);
+		return wc_format_price_range($min_price, $max_price) . '<span style="color:red;font-size:10px;">[DEBUG: range format returned]</span>';
 	}
 
 	/**
