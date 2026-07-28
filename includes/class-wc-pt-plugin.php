@@ -112,7 +112,7 @@ class WC_PT_Plugin
 		wp_enqueue_script(
 			'wc-product-tabs',
 			WC_PT_PLUGIN_URL . 'assets/js/product-tabs.js',
-			[ 'jquery' ],
+			['jquery'],
 			WC_PT_VERSION,
 			true
 		);
@@ -180,19 +180,19 @@ class WC_PT_Plugin
 	 * @param mixed $product WC_Product object or post ID.
 	 * @return array{product_id: int, tabs_data: array<string, mixed>}|null
 	 */
-	private function get_managed_tab_context( $product )
+	private function get_managed_tab_context($product)
 	{
-		if ( ! $product instanceof WC_Product || 'simple' !== $product->get_type() ) {
+		if (! $product instanceof WC_Product || 'simple' !== $product->get_type()) {
 			return null;
 		}
 
 		$product_id = (int) $product->get_id();
-		if ( ! $this->data->product_has_managed_category( $product_id ) ) {
+		if (! $this->data->product_has_managed_category($product_id)) {
 			return null;
 		}
 
-		$tabs_data = $this->data->get_product_tabs_data( $product_id );
-		if ( empty( $tabs_data ) || empty( $tabs_data['tabs'] ) ) {
+		$tabs_data = $this->data->get_product_tabs_data($product_id);
+		if (empty($tabs_data) || empty($tabs_data['tabs'])) {
 			return null;
 		}
 
