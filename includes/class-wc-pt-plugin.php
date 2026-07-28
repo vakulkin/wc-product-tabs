@@ -214,9 +214,9 @@ class WC_PT_Plugin
 		$context = $this->get_managed_tab_context($product);
 		if (null === $context) {
 			if ($product instanceof WC_Product && $this->should_block_simple_fallback($product)) {
-				return '';
+				return '' . ' case 1';
 			}
-			return $price;
+			return $price . ' case 2';
 		}
 
 		$product_id = $context['product_id'];
@@ -237,12 +237,12 @@ class WC_PT_Plugin
 
 		if (! $is_in_loop) {
 			// On main single product view: hide top default price HTML because JS handles interactive summary price
-			return '';
+			return '' . ' case 3';
 		}
 
 		// On shop archive / catalog / shortcodes / product listing views: display price range via data service
 		$range_html = $this->data->format_product_price_range_html($product_id, $price);
-		return $range_html;
+		return $range_html . 'case 4';
 	}
 
 	/**
