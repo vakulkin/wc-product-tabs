@@ -51,21 +51,6 @@ class WC_PT_Data
 		if (is_wp_error($wp_terms)) {
 			$wp_terms = [];
 		}
-		$wp_category_ids = array_map('intval', (array) $wp_terms);
-
-		$raw_acf_categories = (array) get_field('categories', $product_id);
-		$acf_category_ids   = array_map(
-			function ($category) {
-				return is_object($category) ? (int) $category->term_id : (int) $category;
-			},
-			$raw_acf_categories
-		);
-
-		$categories = array_unique(array_filter(array_merge($wp_category_ids, $acf_category_ids)));
-
-		$cat_flakony  = (int) $this->settings->get_category_id('flakony');
-		$cat_zalyszky = (int) $this->settings->get_category_id('zalyszky');
-		$cat_rozpyv   = (int) $this->settings->get_category_id('rozpyv');
 
 		$tabs = [];
 

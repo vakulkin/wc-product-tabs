@@ -69,7 +69,7 @@ class WC_PT_Plugin
 	private function register_runtime_hooks()
 	{
 		add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
-		add_filter('woocommerce_get_price_html', [$this, 'maybe_hide_price_html'], 10, 2);
+		add_filter('woocommerce_get_price_html', [$this, 'maybe_hide_price_html'], 999, 2);
 		add_filter('woocommerce_is_purchasable', [$this, 'maybe_block_simple_fallback_purchase'], 10, 2);
 		add_filter('woocommerce_product_is_in_stock', [$this, 'maybe_mark_simple_fallback_out_of_stock'], 10, 2);
 		add_action('woocommerce_before_add_to_cart_form', [$this, 'maybe_start_hide_cart_form']);
@@ -224,14 +224,14 @@ class WC_PT_Plugin
 		global $post, $woocommerce_loop;
 
 		// Check if this is the main product display on a single product page
-		$is_main_product = is_product() 
-			&& is_singular('product') 
-			&& isset($post) 
+		$is_main_product = is_product()
+			&& is_singular('product')
+			&& isset($post)
 			&& $product_id === $post->ID;
 
 		$is_in_named_loop = isset($woocommerce_loop['name']) && !empty($woocommerce_loop['name']);
 		$is_shortcode     = isset($woocommerce_loop['is_shortcode']) && $woocommerce_loop['is_shortcode'];
-		
+
 		// We are in a loop if it has a name, is a shortcode, or we are NOT rendering the main product
 		$is_in_loop = $is_in_named_loop || $is_shortcode || !$is_main_product;
 
