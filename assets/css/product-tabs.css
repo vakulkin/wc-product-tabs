@@ -1126,3 +1126,367 @@ body.hide-larger-price .price [aria-hidden="true"] {
   display: inline !important;
 }
 
+/* ==========================================================================
+   Ultimate High-Specificity Theme Hardening (Buttons & Notification Shielding)
+   ========================================================================== */
+
+/* 1. Standalone Outer Wrapper (Transparent, No Border / Double Box) */
+#wct-standalone-notify,
+.wct-standalone-notify,
+div.wct-standalone-notify,
+body #wct-standalone-notify,
+body .wct-standalone-notify {
+  box-sizing: border-box !important;
+  display: block !important;
+  margin: 14px 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  clear: both !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* 1b. Notification Banner Card Panel */
+.wct-notify-panel,
+div.wct-notify-panel,
+#wc-product-tabs .wct-notify-panel,
+body .wct-notify-panel {
+  box-sizing: border-box !important;
+  display: none;
+  margin: 0 !important;
+  padding: 16px 18px !important;
+  border: 1px solid var(--wct-border, #e5e7eb) !important;
+  border-radius: var(--wct-radius, 12px) !important;
+  background: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(17, 24, 39, 0.06) !important;
+  clear: both !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* 1c. Inline Notification Panels (Always Displayed) */
+.wct-notify-panel.wct-notify-inline,
+div.wct-notify-panel.wct-notify-inline,
+#wc-product-tabs .wct-notify-panel.wct-notify-inline,
+body .wct-notify-panel.wct-notify-inline {
+  display: block !important;
+}
+
+#wct-standalone-notify *,
+.wct-standalone-notify *,
+.wct-notify-panel *,
+#wc-product-tabs *,
+#wc-product-tabs *::before,
+#wc-product-tabs *::after,
+.wct-standalone-notify *::before,
+.wct-standalone-notify *::after,
+.wct-notify-panel *::before,
+.wct-notify-panel *::after {
+  box-sizing: border-box !important;
+}
+
+/* Notification Inner Layout */
+#wct-standalone-notify .wct-notify-inner,
+.wct-standalone-notify .wct-notify-inner,
+.wct-notify-panel .wct-notify-inner {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+/* Notification Header & Titles */
+#wct-standalone-notify .wct-notify-header,
+.wct-standalone-notify .wct-notify-header,
+.wct-notify-panel .wct-notify-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+#wct-standalone-notify .wct-notify-title,
+.wct-standalone-notify .wct-notify-title,
+.wct-notify-panel .wct-notify-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: var(--wct-fg, #111827) !important;
+  line-height: 1.35 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+#wct-standalone-notify .wct-notify-desc,
+.wct-standalone-notify .wct-notify-desc,
+.wct-notify-panel .wct-notify-desc {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 13px !important;
+  color: var(--wct-muted, #6b7280) !important;
+  line-height: 1.45 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+#wct-standalone-notify .wct-notify-desc strong,
+.wct-standalone-notify .wct-notify-desc strong,
+.wct-notify-panel .wct-notify-desc strong,
+#wct-standalone-notify .wct-notify-label-text,
+.wct-standalone-notify .wct-notify-label-text,
+.wct-notify-panel .wct-notify-label-text {
+  color: var(--wct-fg, #111827) !important;
+  font-weight: 600 !important;
+}
+
+/* Notification Form Row & Inputs */
+#wct-standalone-notify .wct-notify-form-row,
+.wct-standalone-notify .wct-notify-form-row,
+.wct-notify-panel .wct-notify-form-row {
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  margin-top: 4px !important;
+}
+
+#wct-standalone-notify input.wct-notify-phone,
+.wct-standalone-notify input.wct-notify-phone,
+.wct-notify-panel input.wct-notify-phone,
+body input.wct-notify-phone {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
+  padding: 0 14px !important;
+  margin: 0 !important;
+  border: 1px solid var(--wct-border-strong, #d1d5db) !important;
+  border-radius: 9px !important;
+  font-size: 14px !important;
+  font-family: inherit !important;
+  font-weight: 400 !important;
+  color: var(--wct-fg, #111827) !important;
+  background: #ffffff !important;
+  outline: none !important;
+  box-shadow: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  line-height: 42px !important;
+}
+
+#wct-standalone-notify input.wct-notify-phone:focus,
+.wct-standalone-notify input.wct-notify-phone:focus,
+.wct-notify-panel input.wct-notify-phone:focus,
+body input.wct-notify-phone:focus {
+  border-color: var(--wct-ring, #94a3b8) !important;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.25) !important;
+  background: #ffffff !important;
+}
+
+/* 2. Notification Submit Button (Theme Shielding) */
+#wct-standalone-notify button.wct-notify-submit,
+.wct-standalone-notify button.wct-notify-submit,
+.wct-notify-panel button.wct-notify-submit,
+body button.wct-notify-submit,
+body .wct-notify-submit,
+body input[type="submit"].wct-notify-submit {
+  flex: 0 0 auto !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
+  padding: 0 18px !important;
+  margin: 0 !important;
+  border: 1px solid var(--wct-accent, #111827) !important;
+  border-radius: 9px !important;
+  background: var(--wct-accent, #111827) !important;
+  background-image: none !important;
+  color: var(--wct-accent-fg, #ffffff) !important;
+  font-size: 14px !important;
+  font-family: inherit !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  line-height: 40px !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.1) !important;
+  transition: all 150ms ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-decoration: none !important;
+  outline: none !important;
+}
+
+#wct-standalone-notify button.wct-notify-submit:hover,
+.wct-standalone-notify button.wct-notify-submit:hover,
+.wct-notify-panel button.wct-notify-submit:hover,
+body button.wct-notify-submit:hover {
+  background: #1f2937 !important;
+  border-color: #1f2937 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.15) !important;
+}
+
+#wct-standalone-notify button.wct-notify-submit:disabled,
+.wct-standalone-notify button.wct-notify-submit:disabled,
+.wct-notify-panel button.wct-notify-submit:disabled,
+body button.wct-notify-submit:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+/* 3. Main Add-To-Cart Submit Button (#wc-product-tabs .wct-submit) */
+#wc-product-tabs button.single_add_to_cart_button.wct-submit,
+#wc-product-tabs button.wct-submit,
+#wc-product-tabs .wct-submit,
+body #wc-product-tabs button.wct-submit {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 20px !important;
+  margin: 0 !important;
+  border: 1px solid var(--wct-accent, #111827) !important;
+  border-radius: 10px !important;
+  background: var(--wct-accent, #111827) !important;
+  background-image: none !important;
+  color: var(--wct-accent-fg, #ffffff) !important;
+  font-size: 14px !important;
+  font-family: inherit !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  line-height: 42px !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.1) !important;
+  transition: all 150ms ease !important;
+  float: none !important;
+  width: auto !important;
+  text-decoration: none !important;
+}
+
+#wc-product-tabs button.single_add_to_cart_button.wct-submit:hover,
+#wc-product-tabs button.wct-submit:hover,
+#wc-product-tabs .wct-submit:hover {
+  background: #1f2937 !important;
+  border-color: #1f2937 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.15) !important;
+}
+
+#wc-product-tabs button.single_add_to_cart_button.wct-submit:disabled,
+#wc-product-tabs button.wct-submit:disabled,
+#wc-product-tabs .wct-submit:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+  background: var(--wct-accent, #111827) !important;
+  border-color: var(--wct-accent, #111827) !important;
+  color: var(--wct-accent-fg, #ffffff) !important;
+}
+
+/* 4. Tab Navigation, Size & Stepper Buttons Hardening */
+#wc-product-tabs button.wct-nav-btn,
+body #wc-product-tabs .wct-nav-btn {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border: 1px solid var(--wct-border, #e5e7eb) !important;
+  background: #ffffff !important;
+  color: var(--wct-muted, #6b7280) !important;
+  border-radius: 999px !important;
+  padding: 8px 16px !important;
+  line-height: 1 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  transition: all 150ms ease !important;
+}
+
+#wc-product-tabs button.wct-nav-btn.active,
+body #wc-product-tabs .wct-nav-btn.active {
+  background: var(--wct-accent, #111827) !important;
+  border-color: var(--wct-accent, #111827) !important;
+  color: var(--wct-accent-fg, #ffffff) !important;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.12) !important;
+}
+
+#wc-product-tabs button.wct-size-btn,
+body #wc-product-tabs .wct-size-btn {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border: 1px solid var(--wct-border, #e5e7eb) !important;
+  background: #ffffff !important;
+  color: var(--wct-fg, #111827) !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 8px 14px !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+}
+
+#wc-product-tabs button.wct-size-btn.active,
+body #wc-product-tabs .wct-size-btn.active {
+  border-color: var(--wct-accent, #111827) !important;
+  background: var(--wct-accent, #111827) !important;
+  color: var(--wct-accent-fg, #ffffff) !important;
+}
+
+#wc-product-tabs button.wct-qty-btn,
+body #wc-product-tabs .wct-qty-btn {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  height: 100% !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: #f9fafb !important;
+  color: var(--wct-fg, #111827) !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 640px) {
+  #wct-standalone-notify .wct-notify-form-row,
+  .wct-standalone-notify .wct-notify-form-row,
+  .wct-notify-panel .wct-notify-form-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  #wct-standalone-notify button.wct-notify-submit,
+  .wct-standalone-notify button.wct-notify-submit,
+  .wct-notify-panel button.wct-notify-submit,
+  body button.wct-notify-submit {
+    width: 100% !important;
+  }
+}
+
+

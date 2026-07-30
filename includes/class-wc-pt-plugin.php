@@ -163,6 +163,7 @@ class WC_PT_Plugin
 						'id'               => $product_id,
 						'type'             => $product->get_type(),
 						'is_in_stock'      => $product->is_in_stock(),
+						'is_purchasable'   => $product->is_purchasable(),
 						'title'            => $product->get_name(),
 						'has_tabs'         => ! empty($tabs_data),
 						'blocked_fallback' => ('simple' === $product->get_type() && $this->should_block_simple_fallback($product)),
@@ -183,6 +184,10 @@ class WC_PT_Plugin
 	private function get_managed_tab_context($product)
 	{
 		if (! $product instanceof WC_Product || 'simple' !== $product->get_type()) {
+			return null;
+		}
+
+		if (! $product->is_purchasable() || ! $product->is_in_stock()) {
 			return null;
 		}
 
@@ -348,7 +353,7 @@ class WC_PT_Plugin
 		$product_type = $product->get_type();
 
 		if ('simple' === $product_type) {
-			if ($this->should_block_simple_fallback($product) || ! $product->is_in_stock()) {
+			if ($this->should_block_simple_fallback($product) || ! $product->is_in_stock() || ! $product->is_purchasable()) {
 				ob_start();
 				return;
 			}
@@ -357,7 +362,7 @@ class WC_PT_Plugin
 				ob_start();
 			}
 		} elseif ('variable' === $product_type) {
-			if (! $product->is_in_stock()) {
+			if (! $product->is_in_stock() || ! $product->is_purchasable()) {
 				ob_start();
 			}
 		}
@@ -378,7 +383,7 @@ class WC_PT_Plugin
 		$product_type = $product->get_type();
 
 		if ('simple' === $product_type) {
-			if ($this->should_block_simple_fallback($product) || ! $product->is_in_stock()) {
+			if ($this->should_block_simple_fallback($product) || ! $product->is_in_stock() || ! $product->is_purchasable()) {
 				if (ob_get_level() > 0) {
 					ob_end_clean();
 				}
@@ -391,7 +396,7 @@ class WC_PT_Plugin
 				}
 			}
 		} elseif ('variable' === $product_type) {
-			if (! $product->is_in_stock()) {
+			if (! $product->is_in_stock() || ! $product->is_purchasable()) {
 				if (ob_get_level() > 0) {
 					ob_end_clean();
 				}
@@ -419,15 +424,19 @@ class WC_PT_Plugin
 			return;
 		}
 
-		$product_id   = (int) $product->get_id();
-		$product_type = $product->get_type();
+		$product_id     = (int) $product->get_id();
+		$product_type   = $product->get_type();
+		$is_purchasable = $product->is_purchasable();
+		$is_in_stock    = $product->is_in_stock();
 
 		// 1. Simple product with tabs
 		if ('simple' === $product_type) {
-			$tabs_data = $this->data->get_product_tabs_data($product_id);
-			if (! empty($tabs_data) && ! empty($tabs_data['tabs'])) {
-				echo '<div id="wc-product-tabs" data-product-id="' . esc_attr($product_id) . '"></div>';
-				return;
+			if ($is_purchasable && $is_in_stock) {
+				$tabs_data = $this->data->get_product_tabs_data($product_id);
+				if (! empty($tabs_data) && ! empty($tabs_data['tabs'])) {
+					echo '<div id="wc-product-tabs" data-product-id="' . esc_attr($product_id) . '"></div>';
+					return;
+				}
 			}
 
 			// 2. Simple product with blocked fallback (managed cat without valid tab options)
@@ -436,16 +445,16 @@ class WC_PT_Plugin
 				return;
 			}
 
-			// 3. Regular simple product that is out of stock
-			if (! $product->is_in_stock()) {
+			// 3. Regular simple product that is out of stock or not purchasable
+			if (! $is_in_stock || ! $is_purchasable) {
 				echo '<div id="wct-standalone-notify" class="wct-standalone-notify" data-product-id="' . esc_attr($product_id) . '" data-tab="simple" data-key=""></div>';
 				return;
 			}
 		}
 
-		// 4. Variable product that is globally out of stock
+		// 4. Variable product that is globally out of stock or not purchasable
 		if ('variable' === $product_type) {
-			if (! $product->is_in_stock()) {
+			if (! $is_in_stock || ! $is_purchasable) {
 				echo '<div id="wct-standalone-notify" class="wct-standalone-notify" data-product-id="' . esc_attr($product_id) . '" data-tab="variable" data-key=""></div>';
 				return;
 			}
@@ -465,7 +474,7 @@ class WC_PT_Plugin
 		unset($variation_id);
 
 		$product = wc_get_product($product_id);
-		if (! $product || 'simple' !== $product->get_type()) {
+		if (! $product || 'simple' !== $product->get_type() || ! $product->is_purchasable() || ! $product->is_in_stock()) {
 			return $cart_item_data;
 		}
 

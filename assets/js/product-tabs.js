@@ -36,6 +36,10 @@
 
             this.$container = $('#wc-product-tabs');
             if (this.$container.length && window.wcProductTabs.product_tabs) {
+                var info = window.wcProductTabs.product_info;
+                if (info && (info.is_purchasable === false || info.is_in_stock === false)) {
+                    return;
+                }
                 this.data = window.wcProductTabs.product_tabs;
                 this.tabsPriority = this.getTabsPriority();
                 this.render();
@@ -1079,10 +1083,10 @@
                 return;
             }
 
-            // Fallback for simple/out-of-stock products where PHP container might not be in template
+            // Fallback for simple/out-of-stock/unpurchasable products where PHP container might not be in template
             if (window.wcProductTabs && window.wcProductTabs.product_info) {
                 var info = window.wcProductTabs.product_info;
-                if ((!info.is_in_stock || info.blocked_fallback) && !info.has_tabs && info.type !== 'variable') {
+                if ((!info.is_in_stock || info.is_purchasable === false || info.blocked_fallback) && !info.has_tabs && info.type !== 'variable') {
                     var $target = $('.stock.out-of-stock, .single-product .summary .cart, .single-product .summary');
                     if ($target.length && !$('.wct-notify-panel').length) {
                         var $wrapper = $('<div id="wct-standalone-notify" class="wct-standalone-notify" data-product-id="' + info.id + '" data-tab="simple" data-key=""></div>');

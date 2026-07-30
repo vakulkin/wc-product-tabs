@@ -339,6 +339,11 @@ class WC_PT_Data
 	 */
 	public function verify_and_build_tab_data($product_id, $submitted)
 	{
+		$product = wc_get_product($product_id);
+		if ($product instanceof WC_Product && (! $product->is_purchasable() || ! $product->is_in_stock())) {
+			return null;
+		}
+
 		$tabs_data = $this->get_product_tabs_data($product_id);
 		if (empty($tabs_data['tabs']) || ! is_array($submitted)) {
 			return null;
@@ -714,17 +719,6 @@ class WC_PT_Data
 		}
 
 		return 'out_of_stock';
-	}
-
-	/**
-	 * Check if variant is available for selection.
-	 *
-	 * @param array<string, mixed> $variant Variant data.
-	 * @return bool
-	 */
-	private function is_variant_instock($variant)
-	{
-		return 'in_stock' === $this->normalize_variant_status($variant['status'] ?? '');
 	}
 
 	/**
