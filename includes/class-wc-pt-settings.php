@@ -136,16 +136,28 @@ class WC_PT_Settings
 			$atomizers_raw = $atomizers_input;
 		}
 
+		// Preserve or generate the cron_secret.
+		$current_secret = is_array($current) ? sanitize_text_field((string) ($current['cron_secret'] ?? '')) : '';
+		$new_secret     = sanitize_text_field((string) ($input['cron_secret'] ?? ''));
+		if ('' === $new_secret) {
+			// Empty submission means regenerate was triggered — create a fresh token.
+			$new_secret = wp_generate_password(32, false);
+		} elseif ($new_secret === $current_secret) {
+			// Same value submitted (normal save) — keep it as-is.
+			$new_secret = $current_secret;
+		}
+
 		$settings = [
-			'cat_flakony' => max(1, (int) ($input['cat_flakony'] ?? $defaults['cat_flakony'])),
-			'cat_zalyszky' => max(1, (int) ($input['cat_zalyszky'] ?? $defaults['cat_zalyszky'])),
-			'cat_rozpyv' => max(1, (int) ($input['cat_rozpyv'] ?? $defaults['cat_rozpyv'])),
-			'rozpyv_sizes' => $this->parse_sizes_csv($input['rozpyv_sizes'] ?? ''),
-			'tabs_priority' => $this->sanitize_tabs_priority($input['tabs_priority'] ?? $defaults['tabs_priority']),
-			'atomizers' => $this->normalize_atomizers($atomizers_raw),
-			'api_token' => sanitize_text_field($input['api_token'] ?? $defaults['api_token']),
+			'cat_flakony'      => max(1, (int) ($input['cat_flakony'] ?? $defaults['cat_flakony'])),
+			'cat_zalyszky'     => max(1, (int) ($input['cat_zalyszky'] ?? $defaults['cat_zalyszky'])),
+			'cat_rozpyv'       => max(1, (int) ($input['cat_rozpyv'] ?? $defaults['cat_rozpyv'])),
+			'rozpyv_sizes'     => $this->parse_sizes_csv($input['rozpyv_sizes'] ?? ''),
+			'tabs_priority'    => $this->sanitize_tabs_priority($input['tabs_priority'] ?? $defaults['tabs_priority']),
+			'atomizers'        => $this->normalize_atomizers($atomizers_raw),
+			'api_token'        => sanitize_text_field($input['api_token'] ?? $defaults['api_token']),
 			'poster_api_token' => sanitize_text_field($input['poster_api_token'] ?? $defaults['poster_api_token']),
-			'notify_url' => esc_url_raw((string) ($input['notify_url'] ?? $defaults['notify_url'])),
+			'notify_url'       => esc_url_raw((string) ($input['notify_url'] ?? $defaults['notify_url'])),
+			'cron_secret'      => $new_secret,
 		];
 
 		if (empty($settings['rozpyv_sizes'])) {
@@ -314,7 +326,217 @@ class WC_PT_Settings
 
 				<?php submit_button(); ?>
 			</form>
+
+			<?php
+			$cron_secret = esc_attr($settings['cron_secret']);
+			$start_url   = esc_url(rest_url('wc-product-tabs/v1/poster-sync/start'));
+			$reindex_url = esc_url(rest_url('wc-product-tabs/v1/poster-sync/reindex-prices'));
+			?>
+
+			<hr />
+			<h2><?php echo esc_html(WC_PT_I18n::get('cron_secret')); ?></h2>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="wcpt-cron-secret-display"><?php echo esc_html(WC_PT_I18n::get('cron_secret')); ?></label></th>
+					<td>
+						<input id="wcpt-cron-secret-display" type="text" readonly
+							value="<?php echo $cron_secret; ?>"
+							class="regular-text code" style="font-family:monospace;" />
+						<button type="button" id="wcpt-copy-secret" class="button button-secondary" style="margin-left:6px;">
+							<?php echo esc_html(WC_PT_I18n::get('cron_secret_copy')); ?>
+						</button>
+						<button type="button" id="wcpt-regen-secret" class="button button-secondary" style="margin-left:4px;">
+							<?php echo esc_html(WC_PT_I18n::get('cron_secret_regenerate')); ?>
+						</button>
+						<p class="description"><?php echo wp_kses(WC_PT_I18n::get('cron_secret_desc'), ['code' => []]); ?></p>
+						<p class="description" style="margin-top:4px;">
+							<strong>CRON URL (start):</strong>
+							<code id="wcpt-cron-url-example"><?php echo esc_html(add_query_arg('token', $cron_secret, rest_url('wc-product-tabs/v1/poster-sync/start'))); ?></code>
+						</p>
+					</td>
+				</tr>
+			</table>
+
+			<hr />
+			<h2><?php echo esc_html(WC_PT_I18n::get('sync_panel_title')); ?></h2>
+			<p><?php echo esc_html(WC_PT_I18n::get('sync_panel_desc')); ?></p>
+			<p class="description" style="margin-bottom:10px;">
+				<?php esc_html_e('Note: The CRON job processes batches automatically every minute. Use these buttons to trigger a sync manually.', 'wc-product-tabs'); ?>
+			</p>
+
+			<p>
+				<button type="button" id="wcpt-sync-start" class="button button-primary">
+					<?php echo esc_html(WC_PT_I18n::get('sync_start_btn')); ?>
+				</button>
+				&nbsp;
+				<button type="button" id="wcpt-sync-reindex" class="button button-secondary">
+					<?php echo esc_html(WC_PT_I18n::get('sync_reindex_btn')); ?>
+				</button>
+			</p>
+
+			<div id="wcpt-sync-status-wrap" style="
+				background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px;
+				padding:12px 16px;max-width:600px;min-height:48px;margin-top:8px;
+			">
+				<p id="wcpt-sync-status-text" style="margin:0;font-style:italic;color:#50575e;">
+					<?php echo esc_html(WC_PT_I18n::get('sync_status_idle')); ?>
+				</p>
+				<details id="wcpt-sync-log-details" style="margin-top:8px;display:none;">
+					<summary style="cursor:pointer;font-size:12px;color:#646970;">Log</summary>
+					<pre id="wcpt-sync-log" style="
+						font-size:11px;max-height:160px;overflow-y:auto;white-space:pre-wrap;
+						background:#fff;border:1px solid #c3c4c7;padding:6px 8px;
+						margin:6px 0 0;border-radius:3px;
+					"></pre>
+				</details>
+			</div>
+
 		</div>
+
+		<script>
+		(function () {
+			'use strict';
+
+			const secretInput = document.getElementById('wcpt-cron-secret-display');
+			const cronUrlEl   = document.getElementById('wcpt-cron-url-example');
+			const copyBtn     = document.getElementById('wcpt-copy-secret');
+			const regenBtn    = document.getElementById('wcpt-regen-secret');
+			const startBtn    = document.getElementById('wcpt-sync-start');
+			const reindexBtn  = document.getElementById('wcpt-sync-reindex');
+			const statusText  = document.getElementById('wcpt-sync-status-text');
+			const logEl       = document.getElementById('wcpt-sync-log');
+			const logDetails  = document.getElementById('wcpt-sync-log-details');
+
+			const URL_START   = <?php echo wp_json_encode(rest_url('wc-product-tabs/v1/poster-sync/start')); ?>;
+			const URL_STATUS  = <?php echo wp_json_encode(rest_url('wc-product-tabs/v1/poster-sync/status')); ?>;
+			const URL_REINDEX = <?php echo wp_json_encode(rest_url('wc-product-tabs/v1/poster-sync/reindex-prices')); ?>;
+			const REST_NONCE  = <?php echo wp_json_encode(wp_create_nonce('wp_rest')); ?>;
+
+			function setStatus(msg, color) {
+				statusText.textContent = msg;
+				statusText.style.color = color || '#50575e';
+			}
+
+			function log(msg) {
+				logDetails.style.display = '';
+				logEl.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n';
+				logEl.scrollTop = logEl.scrollHeight;
+			}
+
+			function setButtonsDisabled(disabled) {
+				startBtn.disabled  = disabled;
+				reindexBtn.disabled = disabled;
+			}
+
+			async function apiFetch(url) {
+				const resp = await fetch(url, {
+					headers: { 'X-WP-Nonce': REST_NONCE },
+					credentials: 'same-origin',
+				});
+				if (!resp.ok) {
+					const text = await resp.text();
+					throw new Error('HTTP ' + resp.status + ' – ' + text.slice(0, 200));
+				}
+				return resp.json();
+			}
+
+			// ── Copy secret ──────────────────────────────────────────────────────
+			copyBtn.addEventListener('click', function () {
+				navigator.clipboard.writeText(secretInput.value).then(function () {
+					copyBtn.textContent = '✓ Copied';
+					setTimeout(function () { copyBtn.textContent = <?php echo wp_json_encode(WC_PT_I18n::get('cron_secret_copy')); ?>; }, 2000);
+				});
+			});
+
+			// ── Regenerate secret ────────────────────────────────────────────────
+			regenBtn.addEventListener('click', function () {
+				if (!confirm('Regenerate the CRON secret? The old token will stop working once you save settings.')) return;
+				const arr = new Uint8Array(16);
+				crypto.getRandomValues(arr);
+				const hex = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+				secretInput.value = hex;
+				// Keep the hidden form field in sync.
+				const hidden = document.getElementById('wcpt-cron-secret-hidden');
+				if (hidden) hidden.value = hex;
+				// Update the example URL.
+				cronUrlEl.textContent = URL_START.split('?')[0] + '?token=' + hex;
+				alert('Token regenerated. Click "Save Changes" to persist it.');
+			});
+
+			// ── Start Sync ───────────────────────────────────────────────────────
+			// Just kicks off the /start route. CRON handles batch processing
+			// automatically every minute via /status — no polling needed here.
+			startBtn.addEventListener('click', async function () {
+				setButtonsDisabled(true);
+				logEl.textContent = '';
+				logDetails.style.display = 'none';
+				setStatus(<?php echo wp_json_encode(WC_PT_I18n::get('sync_status_starting')); ?>);
+
+				try {
+					const data = await apiFetch(URL_START);
+					log('Response: ' + JSON.stringify(data));
+					if (!data.batch_total || data.batch_total === 0) {
+						setStatus('Done. No products to update.', '#2a9d3e');
+					} else {
+						setStatus(
+							'Sync started. ' + data.batch_total + ' batch(es) queued for ' +
+							data.products_matched + ' product(s). CRON will process them automatically.',
+							'#2a9d3e'
+						);
+					}
+				} catch (err) {
+					setStatus(<?php echo wp_json_encode(WC_PT_I18n::get('sync_status_error')); ?>.replace('%s', err.message), '#d63638');
+					log('ERROR: ' + err.message);
+				} finally {
+					setButtonsDisabled(false);
+				}
+			});
+
+			// ── Re-index Prices ──────────────────────────────────────────────────
+			// Paginates through all pages synchronously (fast DB-only operation).
+			reindexBtn.addEventListener('click', async function () {
+				setButtonsDisabled(true);
+				logEl.textContent = '';
+				logDetails.style.display = 'none';
+				setStatus(<?php echo wp_json_encode(WC_PT_I18n::get('sync_status_reindex_running')); ?>.replace('%d', 1));
+
+				try {
+					let page    = 1;
+					let hasMore = true;
+
+					while (hasMore) {
+						const data = await apiFetch(URL_REINDEX + '?page=' + page + '&per_page=50');
+						log('Page ' + page + ': ' + JSON.stringify(data));
+						hasMore = data.has_more === true;
+						if (hasMore) {
+							page++;
+							setStatus(<?php echo wp_json_encode(WC_PT_I18n::get('sync_status_reindex_running')); ?>.replace('%d', page));
+						}
+					}
+
+					setStatus(<?php echo wp_json_encode(WC_PT_I18n::get('sync_status_reindex_done')); ?>, '#2a9d3e');
+				} catch (err) {
+					setStatus(<?php echo wp_json_encode(WC_PT_I18n::get('sync_status_error')); ?>.replace('%s', err.message), '#d63638');
+					log('ERROR: ' + err.message);
+				} finally {
+					setButtonsDisabled(false);
+				}
+			});
+
+			// ── Inject cron_secret into the settings form ─────────────────────────
+			(function () {
+				const form = document.querySelector('form[action="options.php"]');
+				if (!form) return;
+				const hidden = document.createElement('input');
+				hidden.type  = 'hidden';
+				hidden.id    = 'wcpt-cron-secret-hidden';
+				hidden.name  = <?php echo wp_json_encode(self::OPTION_KEY . '[cron_secret]'); ?>;
+				hidden.value = secretInput.value;
+				form.appendChild(hidden);
+			})();
+		}());
+		</script>
+
 <?php
 	}
 
@@ -332,16 +554,27 @@ class WC_PT_Settings
 			return $defaults;
 		}
 
-		$settings['cat_flakony'] = max(1, (int) ($settings['cat_flakony'] ?? $defaults['cat_flakony']));
-		$settings['cat_zalyszky'] = max(1, (int) ($settings['cat_zalyszky'] ?? $defaults['cat_zalyszky']));
-		$settings['cat_rozpyv'] = max(1, (int) ($settings['cat_rozpyv'] ?? $defaults['cat_rozpyv']));
-		$settings['rozpyv_sizes'] = $this->parse_sizes_csv($settings['rozpyv_sizes'] ?? []);
-		$settings['tabs_priority'] = $this->sanitize_tabs_priority($settings['tabs_priority'] ?? $defaults['tabs_priority']);
-		$settings['atomizers'] = $this->normalize_atomizers($settings['atomizers'] ?? []);
-		$settings['api_token'] = sanitize_text_field($settings['api_token'] ?? $defaults['api_token']);
-		$settings['poster_api_token'] = sanitize_text_field($settings['poster_api_token'] ?? $defaults['poster_api_token']);
-		$settings['notify_url'] = esc_url_raw((string) ($settings['notify_url'] ?? $defaults['notify_url']));
+		$settings['cat_flakony']         = max(1, (int) ($settings['cat_flakony'] ?? $defaults['cat_flakony']));
+		$settings['cat_zalyszky']        = max(1, (int) ($settings['cat_zalyszky'] ?? $defaults['cat_zalyszky']));
+		$settings['cat_rozpyv']          = max(1, (int) ($settings['cat_rozpyv'] ?? $defaults['cat_rozpyv']));
+		$settings['rozpyv_sizes']        = $this->parse_sizes_csv($settings['rozpyv_sizes'] ?? []);
+		$settings['tabs_priority']       = $this->sanitize_tabs_priority($settings['tabs_priority'] ?? $defaults['tabs_priority']);
+		$settings['atomizers']           = $this->normalize_atomizers($settings['atomizers'] ?? []);
+		$settings['api_token']           = sanitize_text_field($settings['api_token'] ?? $defaults['api_token']);
+		$settings['poster_api_token']    = sanitize_text_field($settings['poster_api_token'] ?? $defaults['poster_api_token']);
+		$settings['notify_url']          = esc_url_raw((string) ($settings['notify_url'] ?? $defaults['notify_url']));
+		$settings['cron_secret']         = sanitize_text_field((string) ($settings['cron_secret'] ?? ''));
 		$settings['atomizers_file_hash'] = sanitize_text_field((string) ($settings['atomizers_file_hash'] ?? $defaults['atomizers_file_hash']));
+
+		// Auto-generate a secret on first load if none has been saved yet.
+		if ('' === $settings['cron_secret']) {
+			$settings['cron_secret'] = wp_generate_password(32, false);
+			$stored = get_option(self::OPTION_KEY, []);
+			if (is_array($stored)) {
+				$stored['cron_secret'] = $settings['cron_secret'];
+				update_option(self::OPTION_KEY, $stored, false);
+			}
+		}
 
 		if (empty($settings['rozpyv_sizes'])) {
 			$settings['rozpyv_sizes'] = $defaults['rozpyv_sizes'];
@@ -406,6 +639,17 @@ class WC_PT_Settings
 	}
 
 	/**
+	 * Get CRON secret token used to authenticate external CRON requests.
+	 *
+	 * @return string
+	 */
+	public function get_cron_secret()
+	{
+		$settings = $this->get_settings();
+		return (string) ($settings['cron_secret'] ?? '');
+	}
+
+	/**
 	 * Get Poster POS API token.
 	 *
 	 * @return string
@@ -446,15 +690,16 @@ class WC_PT_Settings
 	private function get_default_settings()
 	{
 		return [
-			'cat_flakony' => self::DEFAULT_CAT_FLAKONY,
-			'cat_zalyszky' => self::DEFAULT_CAT_ZALYSZKY,
-			'cat_rozpyv' => self::DEFAULT_CAT_ROZPYV,
-			'rozpyv_sizes' => self::DEFAULT_ROZPYV_SIZES,
-			'tabs_priority' => self::DEFAULT_TABS_PRIORITY,
-			'atomizers' => [],
-			'api_token' => '',
-			'poster_api_token' => '',
-			'notify_url' => '',
+			'cat_flakony'        => self::DEFAULT_CAT_FLAKONY,
+			'cat_zalyszky'       => self::DEFAULT_CAT_ZALYSZKY,
+			'cat_rozpyv'         => self::DEFAULT_CAT_ROZPYV,
+			'rozpyv_sizes'       => self::DEFAULT_ROZPYV_SIZES,
+			'tabs_priority'      => self::DEFAULT_TABS_PRIORITY,
+			'atomizers'          => [],
+			'api_token'          => '',
+			'poster_api_token'   => '',
+			'notify_url'         => '',
+			'cron_secret'        => '',
 			'atomizers_file_hash' => '',
 		];
 	}

@@ -39,7 +39,6 @@ class WC_PT_I18n
 				'notify_success'                 => __('Дякуємо! Повідомимо вас.', 'wc-product-tabs'),
 				'notify_error'                   => __('Помилка. Спробуйте ще раз.', 'wc-product-tabs'),
 				'notify_error_phone'             => __('Введіть номер телефону.', 'wc-product-tabs'),
-				'notify_rozpyv_label'            => __('Розпив', 'wc-product-tabs'),
 
 				// Cart / Checkout Notices
 				'cart_items_removed'             => __('Деякі товари були видалені з кошика, оскільки їх немає в наявності.', 'wc-product-tabs'),
@@ -83,6 +82,25 @@ class WC_PT_I18n
 				'atomizers_json'                 => __('Atomizers JSON', 'wc-product-tabs'),
 				'atomizers_json_desc'            => __('Use simplified format: id, title, image, in_stock, sizes. Example: "in_stock": true, "sizes": { "2": 10, "3": 15 }', 'wc-product-tabs'),
 
+				// CRON authentication
+				'cron_secret'                    => __('CRON Secret Token', 'wc-product-tabs'),
+				'cron_secret_desc'               => __('Pass this token in CRON requests as <code>?token=…</code> or <code>Authorization: Bearer …</code>. Keep it secret.', 'wc-product-tabs'),
+				'cron_secret_regenerate'         => __('Regenerate', 'wc-product-tabs'),
+				'cron_secret_copy'               => __('Copy', 'wc-product-tabs'),
+
+				// Admin Poster Sync panel
+				'sync_panel_title'               => __('Poster Price Sync', 'wc-product-tabs'),
+				'sync_panel_desc'                => __('Manually trigger the Poster price sync or rebuild the price-bounds index.', 'wc-product-tabs'),
+				'sync_start_btn'                 => __('Start Sync', 'wc-product-tabs'),
+				'sync_reindex_btn'               => __('Re-index Prices', 'wc-product-tabs'),
+				'sync_status_idle'               => __('Idle – click a button to start.', 'wc-product-tabs'),
+				'sync_status_starting'           => __('Starting…', 'wc-product-tabs'),
+				'sync_status_running'            => __('Running batch %d / %d…', 'wc-product-tabs'),
+				'sync_status_done'               => __('Done. Updated: %d | Errors: %d', 'wc-product-tabs'),
+				'sync_status_reindex_running'    => __('Re-indexing page %d…', 'wc-product-tabs'),
+				'sync_status_reindex_done'       => __('Re-index complete.', 'wc-product-tabs'),
+				'sync_status_error'              => __('Error: %s', 'wc-product-tabs'),
+
 				// Poster API Sync
 				'poster_token_not_configured'    => __('Poster API token is not configured.', 'wc-product-tabs'),
 				'poster_request_failed'          => __('Poster API request failed: %s', 'wc-product-tabs'),
@@ -90,6 +108,7 @@ class WC_PT_I18n
 				'poster_no_products'             => __('Poster API returned no products.', 'wc-product-tabs'),
 				'poster_storage_request_failed'  => __('Poster Storage API request failed: %s', 'wc-product-tabs'),
 				'poster_storage_unexpected_resp' => __('Poster Storage API returned unexpected response (HTTP %d).', 'wc-product-tabs'),
+				'cron_unauthorized'              => __('Missing or invalid CRON token.', 'wc-product-tabs'),
 			];
 		}
 
@@ -131,7 +150,6 @@ class WC_PT_I18n
 			'notify_success',
 			'notify_error',
 			'notify_error_phone',
-			'notify_rozpyv_label',
 		];
 
 		$i18n = [];

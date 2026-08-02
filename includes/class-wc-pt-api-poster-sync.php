@@ -39,8 +39,8 @@ class WC_PT_API_Poster_Sync
 	const NAMESPACE  = 'wc-product-tabs/v1';
 	const BATCH_SIZE = 50;
 
-	const OPT_JOB     = 'wc_pt_poster_sync_job';
-	const OPT_BATCHES = 'wc_pt_poster_sync_batches';
+	const OPT_JOB        = 'wc_pt_poster_sync_job';
+	const OPT_BATCH_PREFIX = 'wc_pt_poster_sync_batch_'; // individual batch: OPT_BATCH_PREFIX . $index
 
 	const POSTER_API_URL         = 'https://joinposter.com/api/menu.getProducts';
 	const POSTER_STORAGE_API_URL = 'https://joinposter.com/api/storage.getStorageLeftovers';
@@ -62,13 +62,63 @@ class WC_PT_API_Poster_Sync
 	{
 		$args = [
 			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => '__return_true',
+			'permission_callback' => [__CLASS__, 'cron_permission_check'],
 		];
 
 		register_rest_route(self::NAMESPACE, '/poster-sync/start',          array_merge($args, ['callback' => [__CLASS__, 'handle_start']]));
 		register_rest_route(self::NAMESPACE, '/poster-sync/status',         array_merge($args, ['callback' => [__CLASS__, 'handle_status']]));
 		register_rest_route(self::NAMESPACE, '/poster-sync/reindex-prices', array_merge($args, ['callback' => [__CLASS__, 'handle_reindex']]));
 		register_rest_route(self::NAMESPACE, '/poster-sync/debug-price',    array_merge($args, ['callback' => [__CLASS__, 'handle_debug_price']]));
+	}
+
+	/**
+	 * Permission callback for all CRON routes.
+	 *
+	 * Allows:
+	 *   1. Logged-in administrators (so the admin UI buttons work without a token).
+	 *   2. Any request supplying the correct cron_secret via ?token= or Authorization: Bearer.
+	 *
+	 * @param WP_REST_Request $request
+	 * @return true|WP_Error
+	 */
+	public static function cron_permission_check(WP_REST_Request $request)
+	{
+		// Logged-in admin — always allow.
+		if (current_user_can('manage_options')) {
+			return true;
+		}
+
+		$stored_secret = trim((new WC_PT_Settings())->get_cron_secret());
+
+		// No secret configured yet — deny all non-admin access.
+		if ('' === $stored_secret) {
+			return new WP_Error(
+				'cron_unauthorized',
+				WC_PT_I18n::get('cron_unauthorized'),
+				['status' => 403]
+			);
+		}
+
+		// Try ?token= query param first.
+		$token = trim((string) $request->get_param('token'));
+
+		// Fall back to Authorization: Bearer <token> header.
+		if ('' === $token) {
+			$auth_header = (string) ($request->get_header('authorization') ?? '');
+			if (stripos($auth_header, 'Bearer ') === 0) {
+				$token = trim(substr($auth_header, 7));
+			}
+		}
+
+		if ('' !== $token && hash_equals($stored_secret, $token)) {
+			return true;
+		}
+
+		return new WP_Error(
+			'cron_unauthorized',
+			WC_PT_I18n::get('cron_unauthorized'),
+			['status' => 403]
+		);
 	}
 
 	/**
@@ -164,7 +214,11 @@ class WC_PT_API_Poster_Sync
 			$batches[] = $batch;
 		}
 
-		update_option(self::OPT_BATCHES, $batches, false);
+		// Store each batch as its own option so the status handler only loads
+		// the one batch it needs (avoids deserializing the full blob every minute).
+		foreach ($batches as $i => $batch) {
+			update_option(self::OPT_BATCH_PREFIX . $i, $batch, false);
+		}
 		update_option(
 			self::OPT_JOB,
 			[
@@ -224,7 +278,8 @@ class WC_PT_API_Poster_Sync
 		$job['processing_at'] = time();
 		update_option(self::OPT_JOB, $job, false);
 
-		$batch   = (get_option(self::OPT_BATCHES, []))[$batch_done] ?? [];
+		// Load only the single batch we need — avoids deserializing all batches every minute.
+		$batch   = get_option(self::OPT_BATCH_PREFIX . $batch_done, []);
 		$updated = 0;
 		$errors  = 0;
 		$modified_pids = [];
@@ -256,11 +311,26 @@ class WC_PT_API_Poster_Sync
 
 		if ('completed' === $job['status']) {
 			$job['completed_at'] = time();
+			// Clean up individual batch options now that the job is done.
+			self::delete_batch_options($batch_total);
 		}
 
 		update_option(self::OPT_JOB, $job, false);
 
 		return new WP_REST_Response($job, 200);
+	}
+
+	/**
+	 * Delete all per-batch options for a completed (or reset) job.
+	 *
+	 * @param int $batch_total Total number of batches that were stored.
+	 * @return void
+	 */
+	private static function delete_batch_options($batch_total)
+	{
+		for ($i = 0; $i < (int) $batch_total; $i++) {
+			delete_option(self::OPT_BATCH_PREFIX . $i);
+		}
 	}
 
 	// -----------------------------------------------------------------------
