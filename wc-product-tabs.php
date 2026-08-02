@@ -17,6 +17,7 @@ define( 'WC_PT_PLUGIN_FILE', __FILE__ );
 define( 'WC_PT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WC_PT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
+require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-i18n.php';
 require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-settings.php';
 require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-data.php';
 require_once WC_PT_PLUGIN_DIR . 'includes/class-wc-pt-acf.php';

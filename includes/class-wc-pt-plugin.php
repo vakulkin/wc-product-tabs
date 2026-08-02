@@ -123,22 +123,7 @@ class WC_PT_Plugin
 			'add_to_cart_nonce' => wp_create_nonce('wc_product_tabs_add_to_cart'),
 			'notify_url'        => $this->settings->get_notify_url(),
 			'tabs_priority'     => $this->settings->get_tabs_priority(),
-			'i18n'             => [
-				'add_to_cart'        => esc_html__('Додати в кошик', 'wc-product-tabs'),
-				'added'              => esc_html__('Додано!', 'wc-product-tabs'),
-				'select_option'      => esc_html__('Оберіть варіант', 'wc-product-tabs'),
-				'select_atomizer'    => esc_html__('Оберіть атомайзер', 'wc-product-tabs'),
-				'out_of_stock'       => esc_html__('Немає в наявності', 'wc-product-tabs'),
-				'notify_title'       => esc_html__('Повідомити про надходження', 'wc-product-tabs'),
-				'notify_desc'        => esc_html__('Залиште контакт — ми сповістимо вас, коли аромат знову буде доступний у розмірі', 'wc-product-tabs'),
-				'notify_desc_global' => esc_html__('Залиште контакт — ми сповістимо вас, коли аромат знову буде доступний.', 'wc-product-tabs'),
-				'notify_placeholder' => esc_html__('+380 XX XXX XX XX', 'wc-product-tabs'),
-				'notify_submit'      => esc_html__('Сповістити', 'wc-product-tabs'),
-				'notify_success'     => esc_html__('Дякуємо! Повідомимо вас.', 'wc-product-tabs'),
-				'notify_error'       => esc_html__('Помилка. Спробуйте ще раз.', 'wc-product-tabs'),
-				'notify_error_phone' => esc_html__('Введіть номер телефону.', 'wc-product-tabs'),
-				'notify_rozpyv_label' => esc_html__('Розпив', 'wc-product-tabs'),
-			],
+			'i18n'             => WC_PT_I18n::get_frontend_i18n(),
 		];
 
 		if ($is_single_product) {
@@ -262,7 +247,7 @@ class WC_PT_Plugin
 		$context = $this->get_managed_tab_context($product);
 		if (null === $context) {
 			if ($product instanceof WC_Product && $this->data->product_has_managed_category((int) $product->get_id())) {
-				return __('Повідомити про надходження', 'wc-product-tabs');
+				return WC_PT_I18n::get('notify_title');
 			}
 			return $text;
 		}
@@ -270,14 +255,14 @@ class WC_PT_Plugin
 		$available_count = $this->data->count_available_options($context['tabs_data']);
 
 		if (0 === $available_count) {
-			return __('Повідомити про надходження', 'wc-product-tabs');
+			return WC_PT_I18n::get('notify_title');
 		}
 
 		if (1 === $available_count) {
-			return __('Додати в кошик', 'wc-product-tabs');
+			return WC_PT_I18n::get('add_to_cart');
 		}
 
-		return __('Вибрати варіант', 'wc-product-tabs');
+		return WC_PT_I18n::get('select_option');
 	}
 
 	/**
@@ -616,14 +601,16 @@ class WC_PT_Plugin
 				$cart->remove_cart_item($cart_item_key);
 			}
 
-			if (! wc_has_notice(__('Деякі товари були видалені з кошика, оскільки їх немає в наявності.', 'wc-product-tabs'), 'error')) {
-				wc_add_notice(__('Деякі товари були видалені з кошика, оскільки їх немає в наявності.', 'wc-product-tabs'), 'error');
+			$msg_removed = WC_PT_I18n::get('cart_items_removed');
+			if (! wc_has_notice($msg_removed, 'error')) {
+				wc_add_notice($msg_removed, 'error');
 			}
 		}
 
 		if ($price_updated && empty($items_to_remove)) {
-			if (! wc_has_notice(__('Ціну товарів у кошику було оновлено відповідно до актуальних цін.', 'wc-product-tabs'), 'notice')) {
-				wc_add_notice(__('Ціну товарів у кошику було оновлено відповідно до актуальних цін.', 'wc-product-tabs'), 'notice');
+			$msg_updated = WC_PT_I18n::get('cart_prices_updated');
+			if (! wc_has_notice($msg_updated, 'notice')) {
+				wc_add_notice($msg_updated, 'notice');
 			}
 		}
 	}
@@ -636,12 +623,12 @@ class WC_PT_Plugin
 	private function get_meta_labels()
 	{
 		return [
-			'tab'            => 'Тип',
-			'key'            => 'Варіант',
-			'price'          => 'Ціна',
-			'size_ml'        => "Об'єм",
-			'atomizer_title' => 'Атомайзер',
-			'atomizer_price' => 'Ціна атомайзера',
+			'tab'            => WC_PT_I18n::get('meta_tab'),
+			'key'            => WC_PT_I18n::get('meta_key'),
+			'price'          => WC_PT_I18n::get('meta_price'),
+			'size_ml'        => WC_PT_I18n::get('meta_size_ml'),
+			'atomizer_title' => WC_PT_I18n::get('meta_atomizer_title'),
+			'atomizer_price' => WC_PT_I18n::get('meta_atomizer_price'),
 		];
 	}
 
@@ -656,9 +643,9 @@ class WC_PT_Plugin
 	private function format_meta_value($key, $val, $data = [])
 	{
 		$tab_labels = [
-			'flakony'  => 'Флакон',
-			'zalyszky' => 'Залишок',
-			'rozpyv'   => 'Розпив',
+			'flakony'  => WC_PT_I18n::get('tab_flakony'),
+			'zalyszky' => WC_PT_I18n::get('tab_zalyszky'),
+			'rozpyv'   => WC_PT_I18n::get('tab_rozpyv'),
 		];
 
 		if ($key === 'tab') {

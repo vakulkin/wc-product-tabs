@@ -80,9 +80,10 @@ class WC_PT_Settings
 	 */
 	public function register_admin_page()
 	{
+		$title = WC_PT_I18n::get('plugin_name');
 		add_options_page(
-			esc_html__('WC Product Tabs', 'wc-product-tabs'),
-			esc_html__('WC Product Tabs', 'wc-product-tabs'),
+			$title,
+			$title,
 			'manage_options',
 			'wc-product-tabs',
 			[$this, 'render_settings_page']
@@ -126,7 +127,7 @@ class WC_PT_Settings
 				add_settings_error(
 					self::OPTION_KEY,
 					'atomizers_json_invalid',
-					esc_html__('Atomizers JSON is invalid. Previous valid value has been kept.', 'wc-product-tabs'),
+					esc_html(WC_PT_I18n::get('atomizers_json_invalid')),
 					'error'
 				);
 				$atomizers_raw = $this->get_atomizers();
@@ -173,8 +174,8 @@ class WC_PT_Settings
 		$atomizers_json = wp_json_encode($this->get_atomizers_for_editor($settings['atomizers']), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 ?>
 		<div class="wrap">
-			<h1><?php echo esc_html__('WC Product Tabs', 'wc-product-tabs'); ?></h1>
-			<p><?php echo esc_html__('Category IDs and available розпив sizes used by the plugin logic.', 'wc-product-tabs'); ?>
+			<h1><?php echo esc_html(WC_PT_I18n::get('plugin_name')); ?></h1>
+			<p><?php echo esc_html(WC_PT_I18n::get('settings_desc')); ?>
 			</p>
 
 			<form method="post" action="options.php">
@@ -182,7 +183,7 @@ class WC_PT_Settings
 				<table class="form-table" role="presentation">
 					<tr>
 						<th scope="row"><label
-								for="wcpt-cat-flakony"><?php echo esc_html__('Flakony category ID', 'wc-product-tabs'); ?></label>
+								for="wcpt-cat-flakony"><?php echo esc_html(WC_PT_I18n::get('cat_flakony')); ?></label>
 						</th>
 						<td>
 							<input id="wcpt-cat-flakony" name="<?php echo esc_attr(self::OPTION_KEY); ?>[cat_flakony]"
@@ -192,7 +193,7 @@ class WC_PT_Settings
 					</tr>
 					<tr>
 						<th scope="row"><label
-								for="wcpt-cat-zalyszky"><?php echo esc_html__('Zalyszky category ID', 'wc-product-tabs'); ?></label>
+								for="wcpt-cat-zalyszky"><?php echo esc_html(WC_PT_I18n::get('cat_zalyszky')); ?></label>
 						</th>
 						<td>
 							<input id="wcpt-cat-zalyszky" name="<?php echo esc_attr(self::OPTION_KEY); ?>[cat_zalyszky]"
@@ -202,7 +203,7 @@ class WC_PT_Settings
 					</tr>
 					<tr>
 						<th scope="row"><label
-								for="wcpt-cat-rozpyv"><?php echo esc_html__('Rozpyv category ID', 'wc-product-tabs'); ?></label>
+								for="wcpt-cat-rozpyv"><?php echo esc_html(WC_PT_I18n::get('cat_rozpyv')); ?></label>
 						</th>
 						<td>
 							<input id="wcpt-cat-rozpyv" name="<?php echo esc_attr(self::OPTION_KEY); ?>[cat_rozpyv]"
@@ -212,25 +213,25 @@ class WC_PT_Settings
 					</tr>
 					<tr>
 						<th scope="row"><label
-								for="wcpt-rozpyv-sizes"><?php echo esc_html__('Rozpyv sizes (ml)', 'wc-product-tabs'); ?></label>
+								for="wcpt-rozpyv-sizes"><?php echo esc_html(WC_PT_I18n::get('rozpyv_sizes')); ?></label>
 						</th>
 						<td>
 							<input id="wcpt-rozpyv-sizes" name="<?php echo esc_attr(self::OPTION_KEY); ?>[rozpyv_sizes]"
 								type="text" value="<?php echo esc_attr(implode(', ', $settings['rozpyv_sizes'])); ?>"
 								class="regular-text" />
 							<p class="description">
-								<?php echo esc_html__('Comma-separated list, for example: 2, 3, 5, 10, 15', 'wc-product-tabs'); ?>
+								<?php echo esc_html(WC_PT_I18n::get('rozpyv_sizes_desc')); ?>
 							</p>
 						</td>
 					</tr>
 					<tr>
-						<th scope="row"><?php echo esc_html__('Tabs display and default priority', 'wc-product-tabs'); ?></th>
+						<th scope="row"><?php echo esc_html(WC_PT_I18n::get('tabs_priority')); ?></th>
 						<td>
 							<?php
 							$priority_options = [
-								'flakony' => esc_html__('Flakony', 'wc-product-tabs'),
-								'rozpyv' => esc_html__('Rozpyv', 'wc-product-tabs'),
-								'zalyszky' => esc_html__('Zalyszky', 'wc-product-tabs'),
+								'flakony'  => WC_PT_I18n::get('flakony'),
+								'rozpyv'   => WC_PT_I18n::get('rozpyv'),
+								'zalyszky' => WC_PT_I18n::get('zalyszky'),
 							];
 							$priority = $this->sanitize_tabs_priority($settings['tabs_priority'] ?? []);
 							for ($i = 0; $i < 3; $i++):
@@ -238,7 +239,7 @@ class WC_PT_Settings
 							?>
 								<p>
 									<label
-										for="wcpt-tabs-priority-<?php echo esc_attr((string) $i); ?>"><?php echo esc_html(sprintf(__('Position %d', 'wc-product-tabs'), $i + 1)); ?></label>
+										for="wcpt-tabs-priority-<?php echo esc_attr((string) $i); ?>"><?php echo esc_html(sprintf(WC_PT_I18n::get('position_n'), $i + 1)); ?></label>
 									<select id="wcpt-tabs-priority-<?php echo esc_attr((string) $i); ?>"
 										name="<?php echo esc_attr(self::OPTION_KEY); ?>[tabs_priority][]">
 										<?php foreach ($priority_options as $value => $label): ?>
@@ -250,62 +251,62 @@ class WC_PT_Settings
 								</p>
 							<?php endfor; ?>
 							<p class="description">
-								<?php echo esc_html__('Used for tab order in UI and default auto-selection.', 'wc-product-tabs'); ?>
+								<?php echo esc_html(WC_PT_I18n::get('tabs_priority_desc')); ?>
 							</p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row"><label
-								for="wcpt-api-token"><?php echo esc_html__('API Token', 'wc-product-tabs'); ?></label></th>
+								for="wcpt-api-token"><?php echo esc_html(WC_PT_I18n::get('api_token')); ?></label></th>
 						<td>
 							<input id="wcpt-api-token" name="<?php echo esc_attr(self::OPTION_KEY); ?>[api_token]" type="text"
 								value="<?php echo esc_attr($settings['api_token'] ?? ''); ?>" class="regular-text" />
 							<p class="description">
-								<?php echo esc_html__('Secret token for the /wp-json/wc-product-tabs/v1/products endpoint. Pass as: Authorization: Bearer &lt;token&gt;', 'wc-product-tabs'); ?>
+								<?php echo esc_html(WC_PT_I18n::get('api_token_desc')); ?>
 							</p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row"><label
-								for="wcpt-poster-api-token"><?php echo esc_html__('Poster API Token', 'wc-product-tabs'); ?></label>
+								for="wcpt-poster-api-token"><?php echo esc_html(WC_PT_I18n::get('poster_api_token')); ?></label>
 						</th>
 						<td>
 							<input id="wcpt-poster-api-token" name="<?php echo esc_attr(self::OPTION_KEY); ?>[poster_api_token]"
 								type="text" value="<?php echo esc_attr($settings['poster_api_token'] ?? ''); ?>"
 								class="regular-text" />
 							<p class="description">
-								<?php echo esc_html__('Poster POS API token (format: account_id:token). Used for automatic price sync via menu.getProducts.', 'wc-product-tabs'); ?>
+								<?php echo esc_html(WC_PT_I18n::get('poster_api_token_desc')); ?>
 							</p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row"><label
-								for="wcpt-notify-url"><?php echo esc_html__('Notify API URL (out-of-stock)', 'wc-product-tabs'); ?></label>
+								for="wcpt-notify-url"><?php echo esc_html(WC_PT_I18n::get('notify_url')); ?></label>
 						</th>
 						<td>
 							<input id="wcpt-notify-url" name="<?php echo esc_attr(self::OPTION_KEY); ?>[notify_url]"
 								type="url" value="<?php echo esc_attr($settings['notify_url'] ?? ''); ?>"
 								class="regular-text" placeholder="https://" />
 							<p class="description">
-								<?php echo esc_html__('GET request sent when a customer submits their phone for an out-of-stock item.', 'wc-product-tabs'); ?><br>
-								<strong><?php echo esc_html__('Params appended:', 'wc-product-tabs'); ?></strong>
+								<?php echo esc_html(WC_PT_I18n::get('notify_url_desc')); ?><br>
+								<strong><?php echo esc_html(WC_PT_I18n::get('params_appended')); ?></strong>
 								<code>phone</code>, <code>product_id</code>, <code>tab</code>, <code>key</code>, <code>size_ml</code>, <code>atomizer_id</code>, <code>label</code><br>
-								<strong><?php echo esc_html__('Expected JSON response:', 'wc-product-tabs'); ?></strong>
-								<code>{"success": true}</code> <?php echo esc_html__('or', 'wc-product-tabs'); ?>
+								<strong><?php echo esc_html(WC_PT_I18n::get('expected_json_response')); ?></strong>
+								<code>{"success": true}</code> <?php echo esc_html(WC_PT_I18n::get('or')); ?>
 								<code>{"success": false, "message": "Error text"}</code>
 							</p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row"><label
-								for="wcpt-atomizers-json"><?php echo esc_html__('Atomizers JSON', 'wc-product-tabs'); ?></label>
+								for="wcpt-atomizers-json"><?php echo esc_html(WC_PT_I18n::get('atomizers_json')); ?></label>
 						</th>
 						<td>
 							<textarea id="wcpt-atomizers-json" name="<?php echo esc_attr(self::OPTION_KEY); ?>[atomizers_json]"
 								rows="14"
 								class="large-text code"><?php echo esc_textarea((string) $atomizers_json); ?></textarea>
 							<p class="description">
-								<?php echo esc_html__('Use simplified format: id, title, image, in_stock, sizes. Example: "in_stock": true, "sizes": { "2": 10, "3": 15 }', 'wc-product-tabs'); ?>
+								<?php echo esc_html(WC_PT_I18n::get('atomizers_json_desc')); ?>
 							</p>
 						</td>
 					</tr>

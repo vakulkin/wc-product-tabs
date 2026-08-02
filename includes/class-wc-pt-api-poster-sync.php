@@ -111,7 +111,7 @@ class WC_PT_API_Poster_Sync
 		if ('' === $poster_token) {
 			return new WP_Error(
 				'poster_token_missing',
-				__('Poster API token is not configured.', 'wc-product-tabs'),
+				WC_PT_I18n::get('poster_token_not_configured'),
 				['status' => 503]
 			);
 		}
@@ -589,20 +589,20 @@ class WC_PT_API_Poster_Sync
 		);
 
 		if (is_wp_error($response)) {
-			return new WP_Error('poster_api_error', sprintf(__('Poster API request failed: %s', 'wc-product-tabs'), $response->get_error_message()), ['status' => 502]);
+			return new WP_Error('poster_api_error', sprintf(WC_PT_I18n::get('poster_request_failed'), $response->get_error_message()), ['status' => 502]);
 		}
 
 		$http_code = wp_remote_retrieve_response_code($response);
 		$data      = json_decode(wp_remote_retrieve_body($response), true);
 
 		if (200 !== (int) $http_code || JSON_ERROR_NONE !== json_last_error()) {
-			return new WP_Error('poster_api_error', sprintf(__('Poster API returned unexpected response (HTTP %d).', 'wc-product-tabs'), $http_code), ['status' => 502]);
+			return new WP_Error('poster_api_error', sprintf(WC_PT_I18n::get('poster_unexpected_response'), $http_code), ['status' => 502]);
 		}
 
 		$products = isset($data['response']) && is_array($data['response']) ? $data['response'] : [];
 
 		if (empty($products)) {
-			return new WP_Error('poster_api_empty', __('Poster API returned no products.', 'wc-product-tabs'), ['status' => 502]);
+			return new WP_Error('poster_api_empty', WC_PT_I18n::get('poster_no_products'), ['status' => 502]);
 		}
 
 		$prices = [];
@@ -652,14 +652,14 @@ class WC_PT_API_Poster_Sync
 		);
 
 		if (is_wp_error($response)) {
-			return new WP_Error('poster_storage_error', sprintf(__('Poster Storage API request failed: %s', 'wc-product-tabs'), $response->get_error_message()), ['status' => 502]);
+			return new WP_Error('poster_storage_error', sprintf(WC_PT_I18n::get('poster_storage_request_failed'), $response->get_error_message()), ['status' => 502]);
 		}
 
 		$http_code = wp_remote_retrieve_response_code($response);
 		$data      = json_decode(wp_remote_retrieve_body($response), true);
 
 		if (200 !== (int) $http_code || JSON_ERROR_NONE !== json_last_error()) {
-			return new WP_Error('poster_storage_error', sprintf(__('Poster Storage API returned unexpected response (HTTP %d).', 'wc-product-tabs'), $http_code), ['status' => 502]);
+			return new WP_Error('poster_storage_error', sprintf(WC_PT_I18n::get('poster_storage_unexpected_resp'), $http_code), ['status' => 502]);
 		}
 
 		$items = isset($data['response']) && is_array($data['response']) ? $data['response'] : [];
