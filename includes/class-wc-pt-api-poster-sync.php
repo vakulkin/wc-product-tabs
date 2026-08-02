@@ -214,11 +214,17 @@ class WC_PT_API_Poster_Sync
 			$batches[] = $batch;
 		}
 
-		// Store each batch as its own option so the status handler only loads
-		// the one batch it needs (avoids deserializing the full blob every minute).
 		foreach ($batches as $i => $batch) {
 			update_option(self::OPT_BATCH_PREFIX . $i, $batch, false);
 		}
+
+		$start_log = sprintf(
+			'[%s] Sync started. %d batch(es) queued for %d product(s).',
+			date('Y-m-d H:i:s'),
+			count($batches),
+			count($update_items_by_product)
+		);
+
 		update_option(
 			self::OPT_JOB,
 			[
@@ -230,6 +236,7 @@ class WC_PT_API_Poster_Sync
 				'started_at'    => time(),
 				'processing_at' => null,
 				'completed_at'  => null,
+				'log'           => [ $start_log ],
 			],
 			false
 		);
@@ -240,6 +247,7 @@ class WC_PT_API_Poster_Sync
 				'batch_total'      => count($batches),
 				'products_matched' => count($update_items_by_product),
 				'poster_products'  => count($poster_prices),
+				'log'              => [ $start_log ],
 			],
 			200
 		);
@@ -254,12 +262,13 @@ class WC_PT_API_Poster_Sync
 		$job = get_option(self::OPT_JOB, null);
 
 		if (! is_array($job)) {
-			return new WP_REST_Response(['status' => 'idle'], 200);
+			return new WP_REST_Response(['status' => 'idle', 'log' => []], 200);
 		}
 
 		$status      = (string) ($job['status'] ?? 'pending');
 		$batch_done  = (int) ($job['batch_done'] ?? 0);
 		$batch_total = (int) ($job['batch_total'] ?? 0);
+		$logs        = (array) ($job['log'] ?? []);
 
 		// Stale lock recovery: reset if stuck in 'processing' for > 5 min.
 		if ('processing' === $status) {
@@ -304,17 +313,34 @@ class WC_PT_API_Poster_Sync
 			}
 		}
 
-		$job['batch_done'] = $batch_done + 1;
+		$new_batch_num     = $batch_done + 1;
+		$job['batch_done'] = $new_batch_num;
 		$job['updated']    = (int) ($job['updated'] ?? 0) + $updated;
 		$job['errors']     = (int) ($job['errors'] ?? 0) + $errors;
 		$job['status']     = $job['batch_done'] >= $batch_total ? 'completed' : 'pending';
 
+		$logs[] = sprintf(
+			'[%s] Batch %d/%d: %d updated, %d skipped/errors.',
+			date('Y-m-d H:i:s'),
+			$new_batch_num,
+			$batch_total,
+			$updated,
+			$errors
+		);
+
 		if ('completed' === $job['status']) {
 			$job['completed_at'] = time();
+			$logs[] = sprintf(
+				'[%s] Sync finished. Total updated: %d, Total errors: %d.',
+				date('Y-m-d H:i:s'),
+				$job['updated'],
+				$job['errors']
+			);
 			// Clean up individual batch options now that the job is done.
 			self::delete_batch_options($batch_total);
 		}
 
+		$job['log'] = $logs;
 		update_option(self::OPT_JOB, $job, false);
 
 		return new WP_REST_Response($job, 200);

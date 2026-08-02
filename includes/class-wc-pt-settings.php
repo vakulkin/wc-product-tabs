@@ -534,6 +534,23 @@ class WC_PT_Settings
 				hidden.value = secretInput.value;
 				form.appendChild(hidden);
 			})();
+
+			// ── Load recent sync log history on page load ─────────────────────────
+			(async function loadRecentSyncLog() {
+				try {
+					const data = await apiFetch(URL_STATUS);
+					if (data && Array.isArray(data.log) && data.log.length > 0) {
+						logDetails.style.display = '';
+						logEl.textContent = data.log.join('\n') + '\n';
+						logEl.scrollTop = logEl.scrollHeight;
+					}
+					if (data && data.status === 'processing') {
+						setStatus('Sync in progress: ' + (data.batch_done || 0) + '/' + (data.batch_total || 0) + ' batches...', '#2a9d3e');
+					} else if (data && data.status === 'completed') {
+						setStatus('Last sync completed: ' + (data.updated || 0) + ' updated, ' + (data.errors || 0) + ' errors.', '#50575e');
+					}
+				} catch (err) {}
+			})();
 		}());
 		</script>
 
