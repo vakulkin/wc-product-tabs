@@ -381,14 +381,14 @@ class WC_PT_Settings
 				<p id="wcpt-sync-status-text" style="margin:0;font-style:italic;color:#50575e;">
 					<?php echo esc_html(WC_PT_I18n::get('sync_status_idle')); ?>
 				</p>
-				<details id="wcpt-sync-log-details" style="margin-top:8px;display:none;">
-					<summary style="cursor:pointer;font-size:12px;color:#646970;">Log</summary>
+				<div id="wcpt-sync-log-wrap" style="margin-top:10px;">
+					<strong style="font-size:12px;color:#50575e;display:block;margin-bottom:4px;">Sync Execution Log:</strong>
 					<pre id="wcpt-sync-log" style="
-						font-size:11px;max-height:160px;overflow-y:auto;white-space:pre-wrap;
-						background:#fff;border:1px solid #c3c4c7;padding:6px 8px;
-						margin:6px 0 0;border-radius:3px;
-					"></pre>
-				</details>
+						font-size:11px;line-height:1.5;max-height:220px;overflow-y:auto;white-space:pre-wrap;
+						background:#fff;border:1px solid #c3c4c7;padding:8px 10px;
+						margin:0;border-radius:4px;color:#2c3338;font-family:monospace;
+					">No logs recorded yet.</pre>
+				</div>
 			</div>
 
 		</div>
@@ -405,7 +405,6 @@ class WC_PT_Settings
 			const reindexBtn  = document.getElementById('wcpt-sync-reindex');
 			const statusText  = document.getElementById('wcpt-sync-status-text');
 			const logEl       = document.getElementById('wcpt-sync-log');
-			const logDetails  = document.getElementById('wcpt-sync-log-details');
 
 			const URL_START   = <?php echo wp_json_encode(rest_url('wc-product-tabs/v1/poster-sync/start')); ?>;
 			const URL_STATUS  = <?php echo wp_json_encode(rest_url('wc-product-tabs/v1/poster-sync/status')); ?>;
@@ -418,7 +417,9 @@ class WC_PT_Settings
 			}
 
 			function log(msg) {
-				logDetails.style.display = '';
+				if (logEl.textContent === 'No logs recorded yet.') {
+					logEl.textContent = '';
+				}
 				logEl.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n';
 				logEl.scrollTop = logEl.scrollHeight;
 			}
@@ -464,17 +465,19 @@ class WC_PT_Settings
 			});
 
 			// ── Start Sync ───────────────────────────────────────────────────────
-			// Just kicks off the /start route. CRON handles batch processing
-			// automatically every minute via /status — no polling needed here.
 			startBtn.addEventListener('click', async function () {
 				setButtonsDisabled(true);
 				logEl.textContent = '';
-				logDetails.style.display = 'none';
 				setStatus(<?php echo wp_json_encode(WC_PT_I18n::get('sync_status_starting')); ?>);
 
 				try {
 					const data = await apiFetch(URL_START);
-					log('Response: ' + JSON.stringify(data));
+					if (Array.isArray(data.log) && data.log.length > 0) {
+						logEl.textContent = data.log.join('\n') + '\n';
+					} else {
+						log('Response: ' + JSON.stringify(data));
+					}
+
 					if (!data.batch_total || data.batch_total === 0) {
 						setStatus('Done. No products to update.', '#2a9d3e');
 					} else {
@@ -493,11 +496,9 @@ class WC_PT_Settings
 			});
 
 			// ── Re-index Prices ──────────────────────────────────────────────────
-			// Paginates through all pages synchronously (fast DB-only operation).
 			reindexBtn.addEventListener('click', async function () {
 				setButtonsDisabled(true);
 				logEl.textContent = '';
-				logDetails.style.display = 'none';
 				setStatus(<?php echo wp_json_encode(WC_PT_I18n::get('sync_status_reindex_running')); ?>.replace('%d', 1));
 
 				try {
@@ -540,7 +541,6 @@ class WC_PT_Settings
 				try {
 					const data = await apiFetch(URL_STATUS);
 					if (data && Array.isArray(data.log) && data.log.length > 0) {
-						logDetails.style.display = '';
 						logEl.textContent = data.log.join('\n') + '\n';
 						logEl.scrollTop = logEl.scrollHeight;
 					}
